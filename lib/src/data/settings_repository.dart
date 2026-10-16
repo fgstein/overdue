@@ -56,6 +56,10 @@ class AppSettings extends ChangeNotifier {
   int get themeMode => _int('ui.themeMode', 0);
   set themeMode(int v) => unawaited(_set('ui.themeMode', '$v'));
 
+  /// Task list density: 0 = comfortable, 1 = compact (default), 2 = one line.
+  int get uiDensity => _int('ui.density', 1);
+  set uiDensity(int v) => unawaited(_set('ui.density', '$v'));
+
   /// Desktop overlay: launched together with the main application (on by
   /// default; closing the overlay hides it only until the next start).
   bool get overlayEnabled => _bool('overlay.enabled', true);

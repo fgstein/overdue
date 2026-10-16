@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../core/local_date.dart';
+import '../data/settings_repository.dart';
 import '../domain/agenda.dart';
 import '../services/notifications/local_notifications_gateway.dart';
 import '../services/notifications/notification_gateway.dart';
@@ -68,6 +69,12 @@ abstract class PlatformIntegration {
 
   /// Brings the main window to the foreground.
   Future<void> bringToFront() async {}
+
+  /// Notification-area icon (Windows). Called once after [start].
+  Future<void> startTray(AppSettings settings) async {}
+
+  /// Moves the app's windows (main window and overlay) to the primary screen.
+  Future<void> moveWindowsToPrimaryScreen() async {}
 
   Future<void> dispose() async {}
 }

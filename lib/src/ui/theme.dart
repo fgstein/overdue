@@ -5,13 +5,17 @@ import '../domain/enums.dart';
 abstract final class AppTheme {
   static const seed = Color(0xFF4F5BD5);
 
-  static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark() => _build(Brightness.dark);
+  static ThemeData light({UiDensity density = UiDensity.comfortable}) => _build(Brightness.light, density);
+  static ThemeData dark({UiDensity density = UiDensity.comfortable}) => _build(Brightness.dark, density);
 
-  static ThemeData _build(Brightness b) {
+  static ThemeData _build(Brightness b, UiDensity density) {
     final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: b);
     return ThemeData(
       colorScheme: scheme,
+      extensions: [AppDensity(density)],
+      // Compact lists: buttons keep their visual size instead of a 48px
+      // touch target (which alone would set the row height).
+      materialTapTargetSize: density == UiDensity.comfortable ? null : MaterialTapTargetSize.shrinkWrap,
       useMaterial3: true,
       visualDensity: VisualDensity.standard,
       // Snappy, short transitions everywhere.
@@ -77,4 +81,36 @@ abstract final class AppTheme {
     TaskType.ongoing => Icons.all_inclusive,
     TaskType.recurring => Icons.repeat,
   };
+}
+
+/// How tightly task lists are laid out (Settings → Appearance → Density).
+enum UiDensity {
+  /// Two lines per task, large touch targets.
+  comfortable('Comfortable'),
+
+  /// Two lines per task, small paddings and buttons.
+  compact('Compact'),
+
+  /// Title and details on a single line.
+  singleLine('One line');
+
+  const UiDensity(this.label);
+  final String label;
+
+  static UiDensity fromCode(int code) => values[code.clamp(0, values.length - 1)];
+}
+
+/// Carries [UiDensity] in the theme so every list rebuilds when it changes.
+class AppDensity extends ThemeExtension<AppDensity> {
+  const AppDensity(this.density);
+  final UiDensity density;
+
+  static UiDensity of(BuildContext context) =>
+      Theme.of(context).extension<AppDensity>()?.density ?? UiDensity.comfortable;
+
+  @override
+  AppDensity copyWith({UiDensity? density}) => AppDensity(density ?? this.density);
+
+  @override
+  AppDensity lerp(AppDensity? other, double t) => t < 0.5 || other == null ? this : other;
 }

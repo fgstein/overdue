@@ -15,6 +15,7 @@ class IpcCommand {
   static const quickAdd = 'quick-add';
   static const close = 'close';
   static const reload = 'reload';
+  static const toPrimaryScreen = 'to-primary-screen';
 
   Map<String, Object?> toJson() => {'cmd': name, ...args};
   factory IpcCommand.fromJson(Map<String, Object?> j) =>

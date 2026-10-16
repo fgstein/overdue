@@ -9,6 +9,7 @@ import '../../domain/models.dart';
 import '../bulk_actions.dart';
 import '../editor/quick_add.dart';
 import '../formatting.dart';
+import '../theme.dart';
 import '../widgets/live_query.dart';
 import '../widgets/overlay_button.dart';
 import '../widgets/task_tile.dart';
@@ -399,7 +400,9 @@ class _AgendaScreenState extends State<AgendaScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 8, 2),
+          padding: AppDensity.of(context) == UiDensity.comfortable
+              ? const EdgeInsets.fromLTRB(16, 14, 8, 2)
+              : const EdgeInsets.fromLTRB(12, 8, 8, 0),
           child: Row(
             children: [
               Text(
@@ -484,8 +487,11 @@ class _AgendaScreenState extends State<AgendaScreen> {
         fontWeight: FontWeight.w700,
       ),
     );
+    final compact = AppDensity.of(context) != UiDensity.comfortable;
     final row = Padding(
-      padding: EdgeInsets.fromLTRB(16, h.big ? 18 : 10, 8, 4),
+      padding: compact
+          ? EdgeInsets.fromLTRB(12, h.big ? 10 : 4, 8, h.big ? 2 : 0)
+          : EdgeInsets.fromLTRB(16, h.big ? 18 : 10, 8, 4),
       child: Row(
         children: [
           text,
@@ -508,10 +514,13 @@ class _AgendaScreenState extends State<AgendaScreen> {
   /// "Overdue" header menu: act on every overdue task at once, or select.
   Widget _overdueMenu(BuildContext context, Agenda agenda, Color color) {
     final s = AppScope.of(context);
+    final compact = AppDensity.of(context) != UiDensity.comfortable;
     final overdue = agenda.overdue?.entries.where((e) => e.isOpen).toList() ?? const <AgendaEntry>[];
     return PopupMenuButton<Object>(
       tooltip: 'All overdue tasks…',
       icon: Icon(Icons.more_horiz, color: color),
+      padding: compact ? EdgeInsets.zero : const EdgeInsets.all(8),
+      style: compact ? IconButton.styleFrom(minimumSize: const Size(28, 24), fixedSize: const Size(28, 24)) : null,
       onSelected: (choice) async {
         if (choice == 'select') {
           setState(() {
