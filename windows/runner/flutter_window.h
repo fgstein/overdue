@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "tray_icon.h"
 #include "win32_window.h"
 
 // A window that does nothing but host a Flutter view.
@@ -33,6 +34,12 @@ class FlutterWindow : public Win32Window {
   // System-wide "new task" shortcut (Ctrl+Alt+N), see flutter_window.cpp.
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> hotkey_channel_;
   bool hotkey_registered_ = false;
+
+  // Window placement helpers and the notification-area icon (Dart drives
+  // both, see lib/src/platform/desktop/native_window.dart and tray.dart).
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> window_channel_;
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> tray_channel_;
+  std::unique_ptr<TrayIcon> tray_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

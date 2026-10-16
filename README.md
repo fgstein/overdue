@@ -24,6 +24,8 @@ A fast, fully offline task manager for **Windows, Ubuntu/Linux and Android**, bu
 | Backlog | Open tasks without a date stay visible next to the agenda (side panel on wide windows, a section below the agenda on phones; toggle with the inbox button). Plan one by dragging it onto a day of the agenda or the mini calendar, or with its calendar button; drag a dated task back onto the backlog to remove its date. |
 | Search | Instant full-text search (SQLite FTS5, prefix matching) across titles, descriptions and project names, combinable with project / status / priority / type / due date / completion filters and sorting. |
 | Desktop overlay | Compact, movable, resizable, optionally always-on-top agenda summary with the mini calendar; click the circle to mark a task done (green check), type a title in the field at the bottom and press Enter to add a task for today, click an item to open it in the main app, right-click for Complete / Reschedule / Priority (right-click *OVERDUE* to move them all), drag a line onto a day square to move it. Shown by default when Overdue starts (its × hides it until the next start); the overlay button at the top right of the main window brings it back on top. Remembers position/size, opacity and visibility; can start at login. |
+| Notification area (Windows) | An Overdue icon at the bottom right of the taskbar: *Open Overdue*, *Show the overlay*, *Overlay always on top* (toggle) and *Move windows to the main screen* (also in Settings), which brings the main window and the overlay back from a screen that is no longer connected. The overlay also moves back by itself when its saved position is off-screen, and both windows when a screen is disconnected. |
+| Density | *Settings → Appearance → Density*: *Comfortable* (roomy, touch-friendly), *Compact* (default: two lines per task, small buttons) or *One line* (title and details on one line). |
 | Android widget | Home-screen widget with today's and overdue tasks; tap to open a task, **+** to create one. |
 | Calendar | A month view (*Calendar* tab): one square per day with its tasks as tiny cells in project colours; opens on the current month with today highlighted. Click a day for its panel, double-click to add a task, drop a task (e.g. from the backlog shown beside it) on a day to move it. |
 | Mini calendar | 14 grey squares (from 3 days ago; weekends darker) split into tiny cells in project colours (done = solid; a small number when there are too many). Hover for the list, click for the day, double-click to add a task on that day, drop a task on a day to move it. |
@@ -43,7 +45,7 @@ Requires Flutter 3.47+ (Dart 3.13+).
 
 ```sh
 flutter pub get
-flutter test                      # 134 tests: domain, database, reminders, migrations, UI, privacy
+flutter test                      # 135 tests: domain, database, reminders, migrations, UI, privacy
 flutter build linux --release     # Ubuntu: needs clang, cmake, ninja, libgtk-3-dev
 flutter build windows --release   # on Windows with Visual Studio (Desktop C++)
 flutter build apk --release       # Android SDK + NDK

@@ -5,6 +5,7 @@ import 'package:overdue/src/data/database_opener.dart';
 import 'package:overdue/src/domain/enums.dart';
 import 'package:overdue/src/domain/models.dart';
 import 'package:overdue/src/platform/platform_integration.dart';
+import 'package:overdue/src/ui/widgets/task_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -109,6 +110,23 @@ void main() {
     await settle(tester, rounds: 6);
     expect(find.text('Research insurance'), findsOneWidget);
     expect(find.text('Learn Spanish'), findsNothing);
+    await tester.runAsync(() => services.db.close());
+  });
+
+  testWidgets('density setting shrinks agenda rows', (tester) async {
+    await boot(tester);
+    await tester.runAsync(
+      () => services.tasks.createTask(TaskDraft(title: 'Call the bank', dueDate: LocalDate(2026, 10, 4))),
+    );
+    final heights = <int, double>{};
+    for (final d in [0, 1, 2]) {
+      services.settings.uiDensity = d;
+      await settle(tester);
+      heights[d] = tester.getSize(find.byType(TaskTile)).height;
+    }
+    expect(heights[1]!, lessThan(heights[0]!));
+    expect(heights[2]!, lessThan(heights[1]!));
+    expect(heights[2]!, lessThanOrEqualTo(32), reason: 'one line per task');
     await tester.runAsync(() => services.db.close());
   });
 }

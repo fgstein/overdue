@@ -93,6 +93,74 @@ class TaskTile extends StatelessWidget {
       if (task.description.isNotEmpty) Icon(Icons.notes, size: 14, color: scheme.outline),
     ];
 
+    final density = AppDensity.of(context);
+    final compact = density != UiDensity.comfortable;
+    final oneLine = density == UiDensity.singleLine;
+    // Small fixed-size buttons in compact modes (Material's minimum is 40px,
+    // which alone would set the row height).
+    final btnSize = compact ? const BoxConstraints.tightFor(width: 28, height: 28) : null;
+    final btnIcon = compact ? 18.0 : 20.0;
+    final markerHeight = switch (density) {
+      UiDensity.comfortable => dense ? 28.0 : 36.0,
+      UiDensity.compact => dense ? 18.0 : 24.0,
+      UiDensity.singleLine => 18.0,
+    };
+    final textPadding = switch (density) {
+      UiDensity.comfortable => dense ? 6.0 : 8.0,
+      UiDensity.compact => dense ? 2.0 : 4.0,
+      UiDensity.singleLine => 3.0,
+    };
+
+    final title = Text(
+      task.title,
+      maxLines: oneLine ? 1 : 2,
+      overflow: TextOverflow.ellipsis,
+      style: (compact ? theme.textTheme.bodyMedium : theme.textTheme.bodyLarge)?.copyWith(
+        decoration: closed ? TextDecoration.lineThrough : null,
+        color: closed ? scheme.outline : null,
+        height: 1.2,
+      ),
+    );
+    final Widget text;
+    if (oneLine) {
+      // Details right after the title; clipped (never wrapped) when too long.
+      text = Row(
+        children: [
+          Flexible(flex: 3, child: title),
+          if (meta.isNotEmpty) ...[
+            const SizedBox(width: 10),
+            Flexible(
+              flex: 2,
+              child: ClipRect(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < meta.length; i++) ...[if (i > 0) const SizedBox(width: 8), meta[i]],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      );
+    } else {
+      text = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          title,
+          if (meta.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: compact ? 1 : 3),
+              child: Wrap(spacing: compact ? 8 : 10, runSpacing: compact ? 0 : 2, children: meta),
+            ),
+        ],
+      );
+    }
+
     final tile = InkWell(
       onTap: () {
         final ctrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
@@ -105,15 +173,15 @@ class TaskTile extends StatelessWidget {
       onLongPress: () => TaskActions.showQuickActions(context, item, occurrence: occurrence),
       onSecondaryTapUp: (TapUpDetails _) => TaskActions.showQuickActions(context, item, occurrence: occurrence),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4, vertical: dense ? 0 : 2),
+        padding: EdgeInsets.symmetric(horizontal: 4, vertical: dense || compact ? 0 : 2),
         child: Row(
           children: [
             if (selected != null)
               Checkbox(value: selected, onChanged: (_) => onSelect?.call(), visualDensity: VisualDensity.compact),
             // Project colour marker (projects are the task's container).
             Container(
-              width: 4,
-              height: dense ? 28 : 36,
+              width: compact ? 3 : 4,
+              height: markerHeight,
               decoration: BoxDecoration(
                 color: showProject ? AppTheme.projectColor(item.projectColor, scheme) : Colors.transparent,
                 borderRadius: BorderRadius.circular(2),
@@ -122,32 +190,13 @@ class TaskTile extends StatelessWidget {
             _CompleteBox(
               status: status,
               priority: task.priority,
+              compact: compact,
               onTap: () => TaskActions.toggleComplete(context, task, occurrence: occurrence),
             ),
             Expanded(
               child: Padding(
-                padding: EdgeInsets.symmetric(vertical: dense ? 6 : 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      task.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        decoration: closed ? TextDecoration.lineThrough : null,
-                        color: closed ? scheme.outline : null,
-                        height: 1.2,
-                      ),
-                    ),
-                    if (meta.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 3),
-                        child: Wrap(spacing: 10, runSpacing: 2, children: meta),
-                      ),
-                  ],
-                ),
+                padding: EdgeInsets.symmetric(vertical: textPadding),
+                child: text,
               ),
             ),
             if (task.priority.code >= TaskPriority.high.code)
@@ -155,7 +204,7 @@ class TaskTile extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 4),
                 child: Icon(
                   AppTheme.priorityIcon(task.priority),
-                  size: 18,
+                  size: compact ? 16 : 18,
                   color: AppTheme.priorityColor(task.priority, scheme),
                 ),
               ),
@@ -163,14 +212,18 @@ class TaskTile extends StatelessWidget {
               IconButton(
                 tooltip: 'Remove from agenda',
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.close, size: 20),
+                padding: compact ? EdgeInsets.zero : null,
+                constraints: btnSize,
+                icon: Icon(Icons.close, size: btnIcon),
                 onPressed: onRemove,
               ),
             if (onToggleExpanded != null && item.subtaskCount > 0)
               IconButton(
                 tooltip: expanded == true ? 'Hide subtasks' : 'Show subtasks',
                 visualDensity: VisualDensity.compact,
-                icon: Icon(expanded == true ? Icons.expand_less : Icons.expand_more),
+                padding: compact ? EdgeInsets.zero : null,
+                constraints: btnSize,
+                icon: Icon(expanded == true ? Icons.expand_less : Icons.expand_more, size: compact ? 20 : null),
                 onPressed: onToggleExpanded,
               ),
             // Visible "postpone" for dated, open, one-off tasks (recurring
@@ -178,7 +231,11 @@ class TaskTile extends StatelessWidget {
             if (!closed && occurrence == null && !task.isRecurring && task.dueDate != null && selected == null)
               PopupMenuButton<RescheduleTarget>(
                 tooltip: 'Postpone',
-                icon: Icon(Icons.redo, size: 20, color: scheme.onSurfaceVariant),
+                padding: compact ? EdgeInsets.zero : const EdgeInsets.all(8),
+                style: compact
+                    ? IconButton.styleFrom(minimumSize: const Size(28, 28), fixedSize: const Size(28, 28))
+                    : null,
+                icon: Icon(Icons.redo, size: btnIcon, color: scheme.onSurfaceVariant),
                 onSelected: (target) async {
                   final s = AppScope.of(context);
                   final (cancelled, date) = await BulkActions.resolve(context, target, s.clock.today());
@@ -202,7 +259,9 @@ class TaskTile extends StatelessWidget {
             IconButton(
               tooltip: 'Actions',
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.more_vert, size: 20),
+              padding: compact ? EdgeInsets.zero : null,
+              constraints: btnSize,
+              icon: Icon(Icons.more_vert, size: btnIcon),
               onPressed: () => TaskActions.showQuickActions(context, item, occurrence: occurrence),
             ),
           ],
@@ -218,10 +277,11 @@ class TaskTile extends StatelessWidget {
 }
 
 class _CompleteBox extends StatelessWidget {
-  const _CompleteBox({required this.status, required this.priority, required this.onTap});
+  const _CompleteBox({required this.status, required this.priority, required this.onTap, this.compact = false});
   final TaskStatus status;
   final TaskPriority priority;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -234,16 +294,16 @@ class _CompleteBox extends StatelessWidget {
       label: done ? 'Mark as not completed' : 'Mark as completed',
       child: InkResponse(
         onTap: onTap,
-        radius: 22,
+        radius: compact ? 16 : 22,
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: EdgeInsets.all(compact ? 6 : 10),
           child: Icon(
             done
                 ? Icons.check_circle
                 : status == TaskStatus.cancelled
                 ? Icons.cancel_outlined
                 : Icons.radio_button_unchecked,
-            size: 22,
+            size: compact ? 18 : 22,
             color: color,
           ),
         ),

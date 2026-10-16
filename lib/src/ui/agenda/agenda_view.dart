@@ -196,47 +196,66 @@ class PostponedTile extends StatelessWidget {
     final scheme = theme.colorScheme;
     final red = scheme.error;
     final item = postponement.item;
+    final density = AppDensity.of(context);
+    final compact = density != UiDensity.comfortable;
+    final small = dense || compact;
+    final title = Text(
+      item.task.title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: (compact ? theme.textTheme.bodyMedium : theme.textTheme.bodyLarge)?.copyWith(
+        color: red.withValues(alpha: 0.8),
+        decoration: TextDecoration.lineThrough,
+        decorationColor: red,
+        decorationThickness: 2,
+      ),
+    );
+    final where = Text(
+      destination(postponement, today),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.labelSmall?.copyWith(color: red),
+    );
     return InkWell(
       onTap: () => TaskActions.open(context, item.task.id),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(16, dense ? 4 : 8, 8, dense ? 4 : 8),
+        padding: compact
+            ? EdgeInsets.fromLTRB(4, dense ? 1 : 2, 4, dense ? 1 : 2)
+            : EdgeInsets.fromLTRB(16, dense ? 4 : 8, 8, dense ? 4 : 8),
         child: Row(
           children: [
             Container(
-              width: 4,
-              height: dense ? 28 : 36,
+              width: compact ? 3 : 4,
+              height: compact ? (density == UiDensity.singleLine ? 18 : 24) : (small ? 28 : 36),
               decoration: BoxDecoration(
                 color: AppTheme.projectColor(item.projectColor, scheme).withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(width: 10),
-            Icon(Icons.redo, size: 20, color: red),
-            const SizedBox(width: 12),
+            SizedBox(width: compact ? 6 : 10),
+            Icon(Icons.redo, size: compact ? 18 : 20, color: red),
+            SizedBox(width: compact ? 6 : 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    item.task.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: red.withValues(alpha: 0.8),
-                      decoration: TextDecoration.lineThrough,
-                      decorationColor: red,
-                      decorationThickness: 2,
+              child: density == UiDensity.singleLine
+                  ? Row(
+                      children: [
+                        Flexible(flex: 3, child: title),
+                        const SizedBox(width: 10),
+                        Flexible(flex: 2, child: where),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [title, where],
                     ),
-                  ),
-                  Text(destination(postponement, today), style: theme.textTheme.labelSmall?.copyWith(color: red)),
-                ],
-              ),
             ),
             if (onRemove != null)
               IconButton(
                 tooltip: 'Remove from the agenda',
                 visualDensity: VisualDensity.compact,
+                padding: compact ? EdgeInsets.zero : null,
+                constraints: compact ? const BoxConstraints.tightFor(width: 28, height: 28) : null,
                 icon: Icon(Icons.close, size: 18, color: scheme.outline),
                 onPressed: onRemove,
               ),

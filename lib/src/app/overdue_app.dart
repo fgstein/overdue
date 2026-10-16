@@ -78,8 +78,8 @@ class _OverdueAppState extends State<OverdueApp> with WidgetsBindingObserver {
           title: 'Overdue',
           scaffoldMessengerKey: _messenger,
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(),
-          darkTheme: AppTheme.dark(),
+          theme: AppTheme.light(density: UiDensity.fromCode(s.settings.uiDensity)),
+          darkTheme: AppTheme.dark(density: UiDensity.fromCode(s.settings.uiDensity)),
           themeMode: switch (s.settings.themeMode) {
             1 => ThemeMode.light,
             2 => ThemeMode.dark,

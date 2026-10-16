@@ -141,11 +141,12 @@ class BacklogTile extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final t = item.task;
+    final compact = AppDensity.of(context) != UiDensity.comfortable;
     final tile = InkWell(
       onTap: () => TaskActions.open(context, t.id),
       onSecondaryTapUp: (_) => TaskActions.showQuickActions(context, item),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 2, 4, 2),
+        padding: EdgeInsets.fromLTRB(8, compact ? 0 : 2, 4, compact ? 0 : 2),
         child: Row(
           children: [
             InkResponse(
@@ -191,6 +192,10 @@ class BacklogTile extends StatelessWidget {
               Icon(AppTheme.priorityIcon(t.priority), size: 16, color: AppTheme.priorityColor(t.priority, scheme)),
             PopupMenuButton<RescheduleTarget>(
               tooltip: 'Plan: give it a date',
+              padding: compact ? EdgeInsets.zero : const EdgeInsets.all(8),
+              style: compact
+                  ? IconButton.styleFrom(minimumSize: const Size(28, 28), fixedSize: const Size(28, 28))
+                  : null,
               icon: Icon(Icons.event_outlined, size: 20, color: scheme.onSurfaceVariant),
               onSelected: (target) async {
                 final (cancelled, date) = await BulkActions.resolve(context, target, s.clock.today());

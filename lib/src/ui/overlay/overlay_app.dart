@@ -49,6 +49,8 @@ Future<void> runOverlay(Directory dataDir) async {
     if (bounds != null) await windowManager.setPosition(bounds.topLeft);
     await windowManager.setOpacity(services.settings.overlayOpacityPercent / 100);
     await windowManager.show();
+    // The saved position may be on a screen that is no longer connected.
+    if (bounds != null) await NativeWindowHelpers.ensureOnScreen();
   });
 
   runApp(OverlayApp(services: services, dataDir: dataDir));
@@ -98,16 +100,31 @@ class OverlayIntegration extends DesktopIntegration {
         case IpcCommand.close:
           await windowManager.close();
         case IpcCommand.show:
-          await windowManager.show();
-          // Raise above everything even when "always on top" is off.
-          if (!await windowManager.isAlwaysOnTop()) {
-            await windowManager.setAlwaysOnTop(true);
-            await windowManager.setAlwaysOnTop(false);
-          }
-          await windowManager.focus();
+          await showOverlayWindow();
+        case IpcCommand.toPrimaryScreen:
+          await NativeWindowHelpers.moveToPrimaryScreen();
       }
     });
     await overlayChannel.listen();
+  }
+
+  @override
+  String get role => 'overlay';
+  @override
+  String get otherRole => 'main';
+
+  @override
+  Future<void> showMainWindow() => showMain();
+
+  @override
+  Future<void> showOverlayWindow() async {
+    await windowManager.show();
+    // Raise above everything even when "always on top" is off.
+    if (!await windowManager.isAlwaysOnTop()) {
+      await windowManager.setAlwaysOnTop(true);
+      await windowManager.setAlwaysOnTop(false);
+    }
+    await windowManager.focus();
   }
 
   Future<void> _toMain(IpcCommand cmd, List<String> args) async {

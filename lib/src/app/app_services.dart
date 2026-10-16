@@ -126,6 +126,7 @@ class AppServices {
     refreshDay();
     platform.openTaskRequests.listen(_openRequests.add);
     await platform.start();
+    await platform.startTray(settings);
     final initial = await platform.initialTaskToOpen();
     if (initial != null) _openRequests.add(initial);
     unawaited(tasks.materializeAll());

@@ -10,6 +10,7 @@ import '../../core/local_date.dart';
 import '../../services/activity_export.dart';
 import '../../services/backup_service.dart';
 import '../formatting.dart';
+import '../theme.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, required this.dataPath});
@@ -175,6 +176,15 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   const _AutostartTile(),
+                  ListTile(
+                    leading: const Icon(Icons.desktop_windows_outlined),
+                    title: const Text('Move windows to the main screen'),
+                    subtitle: const Text(
+                      'Brings the overlay and this window back, e.g. from a screen that is no longer connected '
+                      '(also in the Overdue icon of the taskbar’s notification area on Windows)',
+                    ),
+                    onTap: platform.moveWindowsToPrimaryScreen,
+                  ),
                 ],
                 const _Header('Backups'),
                 const _BackupSection(),
@@ -193,6 +203,22 @@ class SettingsScreen extends StatelessWidget {
                     ],
                     selected: {st.themeMode},
                     onSelectionChanged: (v) => st.themeMode = v.first,
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.density_medium),
+                  title: const Text('Density'),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: SegmentedButton<UiDensity>(
+                        showSelectedIcon: false,
+                        segments: [for (final d in UiDensity.values) ButtonSegment(value: d, label: Text(d.label))],
+                        selected: {UiDensity.fromCode(st.uiDensity)},
+                        onSelectionChanged: (v) => st.uiDensity = v.first.index,
+                      ),
+                    ),
                   ),
                 ),
                 const _Header('Privacy & data'),
