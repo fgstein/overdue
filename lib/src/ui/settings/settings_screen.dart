@@ -238,7 +238,7 @@ class SettingsScreen extends StatelessWidget {
                 const AboutListTile(
                   icon: Icon(Icons.info_outline),
                   applicationName: 'Overdue',
-                  applicationVersion: '1.0.0',
+                  applicationVersion: '1.1.0',
                   applicationLegalese: 'Offline task manager. All data stays on this device.',
                 ),
               ],
