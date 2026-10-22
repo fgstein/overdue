@@ -26,6 +26,7 @@ class Projects extends Table {
 @TableIndex(name: 'idx_tasks_type_status', columns: {#type, #status})
 @TableIndex(name: 'idx_tasks_updated', columns: {#updatedAt})
 @TableIndex(name: 'idx_tasks_completed', columns: {#completedAt})
+@TableIndex(name: 'idx_tasks_experiment', columns: {#experimentId})
 class Tasks extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get parentId => integer().nullable().references(Tasks, #id, onDelete: KeyAction.cascade)();
@@ -55,6 +56,11 @@ class Tasks extends Table {
   /// Manual order within an agenda day (drag and drop); 0 = not ordered,
   /// which sorts after ordered tasks by priority/time. Added in schema v3.
   IntColumn get dayOrder => integer().withDefault(const Constant(0))();
+
+  /// Experiment (and optionally one of its runs) the task belongs to.
+  /// Added in schema v5.
+  IntColumn get experimentId => integer().nullable().references(Experiments, #id, onDelete: KeyAction.setNull)();
+  IntColumn get runId => integer().nullable().references(ExperimentRuns, #id, onDelete: KeyAction.setNull)();
 }
 
 /// Materialised occurrences of a recurring task. Only a bounded window is
@@ -146,6 +152,37 @@ class Postponements extends Table {
   IntColumn get archivedAt => integer().nullable()();
 }
 
+/// Experiments (e.g. tracked in MLflow), see `domain/experiments.dart`.
+/// Added in schema v5.
+@DataClassName('ExperimentRow')
+class Experiments extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().withLength(min: 1, max: 200)();
+  IntColumn get projectId => integer().nullable().references(Projects, #id, onDelete: KeyAction.setNull)();
+  IntColumn get status => integer().withDefault(const Constant(0))();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  TextColumn get conclusion => text().withDefault(const Constant(''))();
+  TextColumn get mlflowUrl => text().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
+/// Runs of an experiment (references to MLflow runs). Added in schema v5.
+@DataClassName('ExperimentRunRow')
+@TableIndex(name: 'idx_runs_experiment', columns: {#experimentId})
+class ExperimentRuns extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get experimentId => integer().references(Experiments, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text().withDefault(const Constant(''))();
+  TextColumn get mlflowRunId => text().nullable()();
+  TextColumn get url => text().nullable()();
+  IntColumn get status => integer().withDefault(const Constant(0))();
+  TextColumn get notes => text().withDefault(const Constant(''))();
+  IntColumn get reviewedAt => integer().nullable()();
+  IntColumn get createdAt => integer()();
+  IntColumn get updatedAt => integer()();
+}
+
 @DataClassName('SettingRow')
 class Settings extends Table {
   TextColumn get key => text()();
@@ -155,7 +192,19 @@ class Settings extends Table {
   Set<Column<Object>> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [Projects, Tasks, Occurrences, Reminders, ScheduledNotifications, Settings, Postponements])
+@DriftDatabase(
+  tables: [
+    Projects,
+    Tasks,
+    Occurrences,
+    Reminders,
+    ScheduledNotifications,
+    Settings,
+    Postponements,
+    Experiments,
+    ExperimentRuns,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 

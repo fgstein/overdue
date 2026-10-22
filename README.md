@@ -22,6 +22,7 @@ A fast, fully offline task manager for **Windows, Ubuntu/Linux and Android**, bu
 | Reminders | Several per task: at a date/time, relative to the due time (e.g. 7 days / 2 hours before), or repeating on their own schedule (e.g. every day at 19:00, also without a due date). Notifications offer **Open**, **Complete** and **Snooze**. |
 | Agenda | *Today* (urgent, due today, ongoing, recurring), *Overdue*, and optional *Upcoming* days (none / tomorrow / 3 / 7 / 14 / 30). Complete, change status/priority, snooze and expand subtasks inline. Completed work stays visible (green) for the rest of the day and disappears the next day; remove it earlier with its ×. Unfinished work is never dropped: it moves to *Overdue*. Postpone a task with its ↷ button (tomorrow, next Monday, a date or the backlog) or by dragging it onto another day; it leaves a red struck-through trace ("Postponed to Thu") on the day it left until the end of the day, and in the history. |
 | Backlog | Open tasks without a date stay visible next to the agenda (side panel on wide windows, a section below the agenda on phones; toggle with the inbox button). Plan one by dragging it onto a day of the agenda or the mini calendar, or with its calendar button; drag a dated task back onto the backlog to remove its date. |
+| Experiments | A tab to follow the experiments you launch (e.g. MLflow): status (*Idea → Planned → Running → To analyse → Done*, or *Abandoned*), project, hypothesis/notes and conclusion (Markdown), and its **runs**. Add a run by pasting its MLflow URL or run id (with the experiment's MLflow page set, a bare id becomes a link); each run has a status (Scheduled, Running, Finished, Failed, Killed), notes, *Open in MLflow*, *Copy run id*. Finished/failed runs wait in *Runs to review* until you mark them reviewed; when the last run of a running experiment ends, it moves to *To analyse*. Link any task to an experiment or a specific run (*New task* from an experiment or run, *Link task*, or the *Experiment* chip in the task editor); linked tasks show “experiment › run” in the agenda and lists. Overdue never contacts MLflow: links open in your browser. |
 | Search | Instant full-text search (SQLite FTS5, prefix matching) across titles, descriptions and project names, combinable with project / status / priority / type / due date / completion filters and sorting. |
 | Desktop overlay | Compact, movable, resizable, optionally always-on-top agenda summary with the mini calendar; click the circle to mark a task done (green check), type a title in the field at the bottom and press Enter to add a task for today, click an item to open it in the main app, right-click for Complete / Reschedule / Priority (right-click *OVERDUE* to move them all), drag a line onto a day square to move it. Shown by default when Overdue starts (its × hides it until the next start); the overlay button at the top right of the main window brings it back on top. Remembers position/size, opacity and visibility; can start at login. |
 | Notification area (Windows) | An Overdue icon at the bottom right of the taskbar: *Open Overdue*, *Show the overlay*, *Overlay always on top* (toggle) and *Move windows to the main screen* (also in Settings), which brings the main window and the overlay back from a screen that is no longer connected. The overlay also moves back by itself when its saved position is off-screen, and both windows when a screen is disconnected. |
@@ -37,7 +38,7 @@ A fast, fully offline task manager for **Windows, Ubuntu/Linux and Android**, bu
 | Backups | Daily automatic copy of the database (default *Documents/Overdue backups*, 30 kept), *Back up now*, and *Restore* (a safety copy of the current data is made first). |
 
 Keyboard (desktop): `Ctrl+Alt+N` new task from anywhere (Windows global shortcut; on Linux bind a system shortcut to `overdue --new-task`), `Ctrl+N` new task, `Ctrl+Enter` saves (new-task dialog and editor, also from description fields), `Ctrl+F` search,
-`Ctrl+1…5` switch sections, `Esc` closes the editor.
+`Ctrl+1…6` switch sections, `Esc` closes the editor.
 
 ## Building
 
@@ -45,7 +46,7 @@ Requires Flutter 3.47+ (Dart 3.13+).
 
 ```sh
 flutter pub get
-flutter test                      # 135 tests: domain, database, reminders, migrations, UI, privacy
+flutter test                      # 154 tests: domain, database, reminders, migrations, UI, privacy
 flutter build linux --release     # Ubuntu: needs clang, cmake, ninja, libgtk-3-dev
 flutter build windows --release   # on Windows with Visual Studio (Desktop C++)
 flutter build apk --release       # Android SDK + NDK

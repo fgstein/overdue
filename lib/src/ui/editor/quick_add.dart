@@ -12,9 +12,23 @@ import '../widgets/live_query.dart';
 
 /// Minimal-interaction task creation: type a title, press Enter.
 abstract final class QuickAdd {
-  static Future<void> show(BuildContext context, {int? projectId, LocalDate? due, int? parentId}) {
+  /// [experiment] links the new task to an experiment (and optionally a run);
+  /// its label is shown in the form.
+  static Future<void> show(
+    BuildContext context, {
+    int? projectId,
+    LocalDate? due,
+    int? parentId,
+    ({int experimentId, int? runId, String label})? experiment,
+  }) {
     final wide = MediaQuery.sizeOf(context).width >= 700;
-    final sheet = _QuickAddForm(projectId: projectId, due: due, parentId: parentId, hostContext: context);
+    final sheet = _QuickAddForm(
+      projectId: projectId,
+      due: due,
+      parentId: parentId,
+      experiment: experiment,
+      hostContext: context,
+    );
     if (wide) {
       return showDialog<void>(
         context: context,
@@ -37,10 +51,11 @@ abstract final class QuickAdd {
 }
 
 class _QuickAddForm extends StatefulWidget {
-  const _QuickAddForm({this.projectId, this.due, this.parentId, required this.hostContext});
+  const _QuickAddForm({this.projectId, this.due, this.parentId, this.experiment, required this.hostContext});
   final int? projectId;
   final LocalDate? due;
   final int? parentId;
+  final ({int experimentId, int? runId, String label})? experiment;
   final BuildContext hostContext;
 
   @override
@@ -54,6 +69,7 @@ class _QuickAddFormState extends State<_QuickAddForm> {
   bool _titleMissing = false;
   late LocalDate? _due = widget.due;
   late int? _projectId = widget.projectId;
+  late var _experiment = widget.experiment;
   TaskPriority _priority = TaskPriority.normal;
   TaskType _type = TaskType.oneTime;
   bool _busy = false;
@@ -82,6 +98,8 @@ class _QuickAddFormState extends State<_QuickAddForm> {
           priority: _priority,
           type: _type,
           parentId: widget.parentId,
+          experimentId: _experiment?.experimentId,
+          runId: _experiment?.runId,
         ),
       );
     } finally {
@@ -272,6 +290,13 @@ class _QuickAddFormState extends State<_QuickAddForm> {
                         ),
                       );
                     },
+                  ),
+                if (_experiment != null)
+                  InputChip(
+                    avatar: const Icon(Icons.science_outlined, size: 18),
+                    label: Text(_experiment!.label),
+                    tooltip: 'Experiment',
+                    onDeleted: () => setState(() => _experiment = null),
                   ),
               ],
             ),

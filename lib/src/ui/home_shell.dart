@@ -6,6 +6,7 @@ import '../core/local_date.dart';
 import 'agenda/agenda_screen.dart';
 import 'calendar/calendar_screen.dart';
 import 'editor/quick_add.dart';
+import 'experiments/experiments_screen.dart';
 import 'projects/projects_screen.dart';
 import 'settings/settings_screen.dart';
 import 'tasks/tasks_screen.dart';
@@ -27,15 +28,17 @@ class HomeShellState extends State<HomeShell> {
   int _index = 0;
   static const _tasksTab = 2;
   static const _projectsTab = 3;
+  static const _experimentsTab = 4;
   final _visited = <int>{};
   final _searchFocus = FocusNode();
-  late final _navigators = List.generate(5, (_) => GlobalKey<NavigatorState>());
+  late final _navigators = List.generate(6, (_) => GlobalKey<NavigatorState>());
 
   static const _destinations = [
     (Icons.today_outlined, Icons.today, 'Agenda'),
     (Icons.calendar_month_outlined, Icons.calendar_month, 'Calendar'),
     (Icons.checklist_outlined, Icons.checklist, 'Tasks'),
     (Icons.folder_outlined, Icons.folder, 'Projects'),
+    (Icons.science_outlined, Icons.science, 'Experiments'),
     (Icons.settings_outlined, Icons.settings, 'Settings'),
   ];
 
@@ -76,6 +79,7 @@ class HomeShellState extends State<HomeShell> {
       1 => const CalendarScreen(),
       _tasksTab => TasksScreen(searchFocus: _searchFocus),
       _projectsTab => const ProjectsScreen(),
+      _experimentsTab => const ExperimentsScreen(),
       _ => SettingsScreen(dataPath: widget.dataPath),
     };
     return Navigator(
@@ -96,7 +100,7 @@ class HomeShellState extends State<HomeShell> {
         for (var i = 0; i < _destinations.length; i++) _visited.contains(i) ? _tab(i) : const SizedBox.shrink(),
       ],
     );
-    // Projects provide their own buttons (new project / new task in project).
+    // Projects and experiments provide their own buttons.
     final fab = _index < _projectsTab
         ? FloatingActionButton(tooltip: 'New task (Ctrl+N)', onPressed: quickAdd, child: const Icon(Icons.add))
         : null;
@@ -147,7 +151,13 @@ class HomeShellState extends State<HomeShell> {
               labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
               destinations: [
                 for (final (icon, selected, label) in _destinations)
-                  NavigationDestination(icon: Icon(icon), selectedIcon: Icon(selected), label: label),
+                  NavigationDestination(
+                    icon: Icon(icon),
+                    selectedIcon: Icon(selected),
+                    // Six tabs: keep the label on one line on phones.
+                    label: label == 'Experiments' ? 'Exp.' : label,
+                    tooltip: label,
+                  ),
               ],
             ),
           );
@@ -174,6 +184,7 @@ class HomeShellState extends State<HomeShell> {
           const SingleActivator(LogicalKeyboardKey.digit3, control: true): () => select(2),
           const SingleActivator(LogicalKeyboardKey.digit4, control: true): () => select(3),
           const SingleActivator(LogicalKeyboardKey.digit5, control: true): () => select(4),
+          const SingleActivator(LogicalKeyboardKey.digit6, control: true): () => select(5),
         },
         child: Focus(autofocus: true, child: scaffold),
       ),

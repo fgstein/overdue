@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../core/local_date.dart';
 import '../domain/enums.dart';
+import '../domain/experiments.dart';
 import '../domain/models.dart';
 import '../domain/recurrence.dart';
 import 'database.dart';
@@ -27,6 +28,8 @@ extension TaskRowMapping on TaskRow {
     createdAt: _utc(createdAt),
     updatedAt: _utc(updatedAt),
     completedAt: completedAt == null ? null : _utc(completedAt!),
+    experimentId: experimentId,
+    runId: runId,
   );
 }
 
@@ -40,6 +43,35 @@ RecurrenceRule? _safeRule(String? json) {
 
 extension ProjectRowMapping on ProjectRow {
   Project toDomain() => Project(id: id, name: name, color: color, sortOrder: sortOrder);
+}
+
+extension ExperimentRowMapping on ExperimentRow {
+  Experiment toDomain() => Experiment(
+    id: id,
+    name: name,
+    projectId: projectId,
+    status: ExperimentStatus.fromCode(status),
+    description: description,
+    conclusion: conclusion,
+    mlflowUrl: mlflowUrl,
+    createdAt: _utc(createdAt),
+    updatedAt: _utc(updatedAt),
+  );
+}
+
+extension ExperimentRunRowMapping on ExperimentRunRow {
+  ExperimentRun toDomain() => ExperimentRun(
+    id: id,
+    experimentId: experimentId,
+    name: name,
+    mlflowRunId: mlflowRunId,
+    url: url,
+    status: RunStatus.fromCode(status),
+    notes: notes,
+    reviewedAt: reviewedAt == null ? null : _utc(reviewedAt!),
+    createdAt: _utc(createdAt),
+    updatedAt: _utc(updatedAt),
+  );
 }
 
 extension OccurrenceRowMapping on OccurrenceRow {

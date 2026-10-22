@@ -37,6 +37,8 @@ class Task {
     required this.createdAt,
     required this.updatedAt,
     this.completedAt,
+    this.experimentId,
+    this.runId,
   });
 
   final int id;
@@ -61,6 +63,10 @@ class Task {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? completedAt;
+
+  /// Linked experiment and, optionally, one of its runs.
+  final int? experimentId;
+  final int? runId;
 
   bool get isRecurring => type == TaskType.recurring && recurrence != null;
   bool get hasDueTime => dueDate != null && dueMinute != null;
@@ -167,6 +173,8 @@ class TaskDraft {
     this.dueMinute,
     this.recurrence,
     List<Reminder>? reminders,
+    this.experimentId,
+    this.runId,
   }) : reminders = reminders ?? [];
 
   factory TaskDraft.fromTask(Task t, List<Reminder> reminders) => TaskDraft(
@@ -181,6 +189,8 @@ class TaskDraft {
     dueMinute: t.dueMinute,
     recurrence: t.recurrence,
     reminders: reminders.where((r) => r.kind != ReminderKind.snooze).toList(),
+    experimentId: t.experimentId,
+    runId: t.runId,
   );
 
   String title;
@@ -194,6 +204,11 @@ class TaskDraft {
   int? dueMinute;
   RecurrenceRule? recurrence;
   List<Reminder> reminders;
+
+  /// Used when creating a task; links are changed with
+  /// `ExperimentRepository.linkTask`.
+  int? experimentId;
+  int? runId;
 }
 
 /// Row shown in task lists and search results.
@@ -205,6 +220,8 @@ class TaskListItem {
     this.subtaskCount = 0,
     this.subtaskDone = 0,
     this.parentTitle,
+    this.experimentName,
+    this.runName,
   });
   final Task task;
   final String? projectName;
@@ -212,6 +229,8 @@ class TaskListItem {
   final int subtaskCount;
   final int subtaskDone;
   final String? parentTitle;
+  final String? experimentName;
+  final String? runName;
 }
 
 DateTime? millisToLocal(int? v) => _ms(v);

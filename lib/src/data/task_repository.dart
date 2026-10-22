@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../core/local_date.dart';
 import '../domain/enums.dart';
+import '../domain/experiments.dart';
 import '../domain/models.dart';
 import '../domain/recurrence.dart';
 import '../domain/recurrence_engine.dart';
@@ -39,12 +40,17 @@ class TaskRepository {
   /// Columns appended to `t.*` for list rows.
   static const _listColumns = '''
     t.*, p.name AS p_name, p.color AS p_color, par.title AS parent_title,
+    e.name AS e_name, r.name AS r_name, r.mlflow_run_id AS r_mlflow_id,
     (SELECT COUNT(*) FROM tasks c WHERE c.parent_id = t.id) AS sub_total,
     (SELECT COUNT(*) FROM tasks c WHERE c.parent_id = t.id AND c.status IN $_closedStatuses) AS sub_done''';
-  static const _listJoins = '''
-    FROM tasks t
+  static const _listJoins = 'FROM tasks t $_taskJoins';
+
+  /// Joins needed by [_listColumns] once `t` is in scope.
+  static const _taskJoins = '''
     LEFT JOIN projects p ON p.id = t.project_id
-    LEFT JOIN tasks par ON par.id = t.parent_id''';
+    LEFT JOIN tasks par ON par.id = t.parent_id
+    LEFT JOIN experiments e ON e.id = t.experiment_id
+    LEFT JOIN experiment_runs r ON r.id = t.run_id''';
 
   TaskListItem _listItem(QueryRow row) => TaskListItem(
     task: readTaskRow(db, row).toDomain(),
@@ -53,7 +59,12 @@ class TaskRepository {
     parentTitle: row.readNullable<String>('parent_title'),
     subtaskCount: row.read<int>('sub_total'),
     subtaskDone: row.read<int>('sub_done'),
+    experimentName: row.readNullable<String>('e_name'),
+    runName: _runLabel(row.readNullable<String>('r_name'), row.readNullable<String>('r_mlflow_id')),
   );
+
+  static String? _runLabel(String? name, String? mlflowId) =>
+      name != null && name.isNotEmpty ? name : (mlflowId == null ? null : MlflowLink.shortId(mlflowId));
 
   /// Emits whenever task-related data changes (used to trigger reconciliation
   /// of notifications and widget refreshes).
@@ -74,7 +85,7 @@ class TaskRepository {
       .customSelect(
         'SELECT $_listColumns $_listJoins WHERE t.parent_id = ? ORDER BY t.position, t.id',
         variables: [Variable.withInt(parentId)],
-        readsFrom: {db.tasks, db.projects},
+        readsFrom: {db.tasks, db.projects, db.experiments, db.experimentRuns},
       )
       .watch()
       .map((rows) => rows.map(_listItem).toList());
@@ -185,7 +196,7 @@ class TaskRepository {
         '${where.isEmpty ? '' : ' WHERE ${where.join(' AND ')}'}'
         ' ORDER BY $order, t.id LIMIT ${q.limit}';
     return db
-        .customSelect(sql, variables: vars, readsFrom: {db.tasks, db.projects})
+        .customSelect(sql, variables: vars, readsFrom: {db.tasks, db.projects, db.experiments, db.experimentRuns})
         .watch()
         .map((rows) => rows.map(_listItem).toList());
   }
@@ -203,7 +214,7 @@ class TaskRepository {
         'AND (t.parent_id IS NULL OR par.status IN $_agendaStatuses '
         'OR (par.status = 2 AND par.archived_at IS NULL AND par.completed_at >= ?1))',
         variables: [Variable.withInt(_startOfDayMs(today)), Variable.withInt(end.epochDay)],
-        readsFrom: {db.tasks, db.projects},
+        readsFrom: {db.tasks, db.projects, db.experiments, db.experimentRuns},
       )
       .watch()
       .map((rows) => rows.map(_listItem).toList());
@@ -215,12 +226,12 @@ class TaskRepository {
         'SELECT $_listColumns, o.id AS o_id, o.date AS o_date, o.due_minute AS o_due_minute, '
         'o.status AS o_status '
         'FROM occurrences o JOIN tasks t ON t.id = o.task_id '
-        'LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN tasks par ON par.id = t.parent_id '
+        '$_taskJoins '
         'WHERE (o.status IN $_agendaStatuses '
         'OR (o.status = 2 AND o.archived_at IS NULL AND o.completed_at >= ?1)) '
         'AND o.date <= ?2 AND t.status IN $_agendaStatuses',
         variables: [Variable.withInt(_startOfDayMs(today)), Variable.withInt(end.epochDay)],
-        readsFrom: {db.tasks, db.projects, db.occurrences},
+        readsFrom: {db.tasks, db.projects, db.occurrences, db.experiments, db.experimentRuns},
       )
       .watch()
       .map(
@@ -262,7 +273,7 @@ class TaskRepository {
             Variable.withInt(startMs),
             Variable.withInt(endMs),
           ],
-          readsFrom: {db.tasks, db.occurrences, db.projects},
+          readsFrom: {db.tasks, db.occurrences, db.projects, db.experiments, db.experimentRuns},
         )
         .watch()
         .map((rows) {
@@ -308,27 +319,27 @@ class TaskRepository {
           'SELECT $_listColumns $_listJoins WHERE t.status = 2 AND t.type != 2 '
           'AND t.completed_at >= ? AND t.completed_at < ? ORDER BY t.completed_at DESC',
           variables: [Variable.withInt(startMs), Variable.withInt(endMs)],
-          readsFrom: {db.tasks, db.projects},
+          readsFrom: {db.tasks, db.projects, db.experiments, db.experimentRuns},
         )
         .watch();
     final occurrences = db
         .customSelect(
           'SELECT $_listColumns, o.date AS o_date, o.due_minute AS o_due_minute, o.completed_at AS o_done '
           'FROM occurrences o JOIN tasks t ON t.id = o.task_id '
-          'LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN tasks par ON par.id = t.parent_id '
+          '$_taskJoins '
           'WHERE o.status = 2 AND o.completed_at >= ? AND o.completed_at < ? ORDER BY o.completed_at DESC',
           variables: [Variable.withInt(startMs), Variable.withInt(endMs)],
-          readsFrom: {db.tasks, db.projects, db.occurrences},
+          readsFrom: {db.tasks, db.projects, db.occurrences, db.experiments, db.experimentRuns},
         )
         .watch();
     final postponed = db
         .customSelect(
           'SELECT $_listColumns, pp.id AS pp_id, pp.from_date AS pp_from, pp.to_date AS pp_to, pp.created_at AS pp_at '
           'FROM postponements pp JOIN tasks t ON t.id = pp.task_id '
-          'LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN tasks par ON par.id = t.parent_id '
+          '$_taskJoins '
           'WHERE pp.created_at >= ? AND pp.created_at < ? ORDER BY pp.created_at DESC',
           variables: [Variable.withInt(startMs), Variable.withInt(endMs)],
-          readsFrom: {db.tasks, db.projects, db.postponements},
+          readsFrom: {db.tasks, db.projects, db.postponements, db.experiments, db.experimentRuns},
         )
         .watch();
     LocalDate dayOf(int ms) => LocalDate.fromDateTime(DateTime.fromMillisecondsSinceEpoch(ms));
@@ -392,11 +403,24 @@ class TaskRepository {
         .customSelect(
           'SELECT $_listColumns $_listJoins WHERE t.created_at >= ? AND t.created_at < ? ORDER BY t.created_at',
           variables: [Variable.withInt(_startOfDayMs(from)), Variable.withInt(_startOfDayMs(to.addDays(1)))],
-          readsFrom: {db.tasks, db.projects},
+          readsFrom: {db.tasks, db.projects, db.experiments, db.experimentRuns},
         )
         .get();
     return rows.map(_listItem).toList();
   }
+
+  /// Tasks linked to an experiment: open ones first (by due date), then
+  /// closed ones (most recently completed first).
+  Stream<List<TaskListItem>> watchExperimentTasks(int experimentId) => db
+      .customSelect(
+        'SELECT $_listColumns $_listJoins WHERE t.experiment_id = ? '
+        'ORDER BY t.status IN $_closedStatuses, t.due_date IS NULL, t.due_date, t.priority DESC, '
+        't.completed_at DESC, t.id',
+        variables: [Variable.withInt(experimentId)],
+        readsFrom: {db.tasks, db.projects, db.experiments, db.experimentRuns},
+      )
+      .watch()
+      .map((rows) => rows.map(_listItem).toList());
 
   /// Earliest completion date in the database (bounds history scrolling).
   Future<LocalDate?> earliestCompletion() async {
@@ -482,6 +506,8 @@ class TaskRepository {
             createdAt: now,
             updatedAt: now,
             completedAt: Value(d.status == TaskStatus.completed ? now : null),
+            experimentId: Value(d.experimentId),
+            runId: Value(d.runId),
           ),
         );
     for (final r in d.reminders) {
@@ -718,10 +744,10 @@ class TaskRepository {
       .customSelect(
         'SELECT $_listColumns, pp.id AS pp_id, pp.from_date AS pp_from, pp.to_date AS pp_to, pp.created_at AS pp_at '
         'FROM postponements pp JOIN tasks t ON t.id = pp.task_id '
-        'LEFT JOIN projects p ON p.id = t.project_id LEFT JOIN tasks par ON par.id = t.parent_id '
+        '$_taskJoins '
         'WHERE pp.archived_at IS NULL AND pp.created_at >= ? AND pp.from_date <= ? ORDER BY pp.created_at',
         variables: [Variable.withInt(_startOfDayMs(today)), Variable.withInt(end.epochDay)],
-        readsFrom: {db.tasks, db.projects, db.postponements},
+        readsFrom: {db.tasks, db.projects, db.postponements, db.experiments, db.experimentRuns},
       )
       .watch()
       .map((rows) => rows.map(_postponedItem).toList());

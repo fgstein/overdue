@@ -8,6 +8,7 @@ import '../core/local_date.dart';
 import '../data/agenda_service.dart';
 import '../data/database.dart';
 import '../data/database_opener.dart';
+import '../data/experiment_repository.dart';
 import '../data/project_repository.dart';
 import '../data/settings_repository.dart';
 import '../data/task_repository.dart';
@@ -25,7 +26,8 @@ class AppServices {
     required this.clock,
     required this.dataDir,
   }) : tasks = TaskRepository(db, clock: clock),
-       projects = ProjectRepository(db, clock: clock) {
+       projects = ProjectRepository(db, clock: clock),
+       experiments = ExperimentRepository(db, clock: clock) {
     backups = BackupService(
       db: db,
       settings: settings,
@@ -84,6 +86,7 @@ class AppServices {
   final Clock clock;
   final TaskRepository tasks;
   final ProjectRepository projects;
+  final ExperimentRepository experiments;
   late final AgendaService agenda;
   late final ReminderHost reminders;
 

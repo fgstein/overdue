@@ -3,6 +3,7 @@ import 'package:overdue/src/app/overdue_app.dart';
 import 'package:overdue/src/core/local_date.dart';
 import 'package:overdue/src/data/database_opener.dart';
 import 'package:overdue/src/domain/enums.dart';
+import 'package:overdue/src/domain/experiments.dart';
 import 'package:overdue/src/domain/models.dart';
 import 'package:overdue/src/platform/platform_integration.dart';
 import 'package:overdue/src/ui/widgets/task_tile.dart';
@@ -110,6 +111,57 @@ void main() {
     await settle(tester, rounds: 6);
     expect(find.text('Research insurance'), findsOneWidget);
     expect(find.text('Learn Spanish'), findsNothing);
+    await tester.runAsync(() => services.db.close());
+  });
+
+  testWidgets('experiments tab: create an experiment, add a run, review it, link a task', (tester) async {
+    await boot(tester);
+    await tester.tap(find.text('Experiments').first);
+    await settle(tester);
+    await tester.tap(find.text('New experiment'));
+    await settle(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'LR sweep');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'MLflow experiment URL (optional)'),
+      'http://localhost:5000/#/experiments/12',
+    );
+    await tester.tap(find.text('Save'));
+    await settle(tester, rounds: 6);
+    expect(find.text('LR sweep'), findsWidgets, reason: 'the experiment page is open');
+
+    await tester.tap(find.text('Add run'));
+    await settle(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'MLflow run URL or run id (optional)'),
+      '0a1b2c3d4e5f60718293a4b5c6d7e8f9',
+    );
+    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'lr=3e-4');
+    await tester.tap(find.text('Save'));
+    await settle(tester, rounds: 6);
+    expect(find.text('lr=3e-4'), findsOneWidget);
+    final run = (await tester.runAsync(() => services.experiments.getAllRuns()))!.single;
+    expect(run.url, 'http://localhost:5000/#/experiments/12/runs/0a1b2c3d4e5f60718293a4b5c6d7e8f9');
+
+    // New task for the run, from its row.
+    await tester.tap(find.byTooltip('New task for this run'));
+    await settle(tester);
+    expect(find.text('LR sweep › lr=3e-4'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'What needs to be done?'), 'Compare val loss');
+    await tester.tap(find.text('Add'));
+    await settle(tester, rounds: 6);
+    final task = await tester.runAsync(() => services.tasks.getTask(1));
+    expect(task!.experimentId, run.experimentId);
+    expect(task.runId, run.id);
+    expect(find.text('Compare val loss'), findsOneWidget);
+
+    // The run finishes: it shows up as "to review" in the tab.
+    await tester.runAsync(() => services.experiments.setRunStatus(run.id, RunStatus.finished));
+    await tester.pageBack();
+    await settle(tester, rounds: 6);
+    expect(find.text('Runs to review'), findsOneWidget);
+    await tester.tap(find.byTooltip('Mark as reviewed'));
+    await settle(tester, rounds: 6);
+    expect(find.text('Runs to review'), findsNothing);
     await tester.runAsync(() => services.db.close());
   });
 

@@ -8,7 +8,7 @@ import 'database.dart';
 /// [strategy] that only *adds* or *transforms* data (never drops user data),
 /// and add a migration test in `test/data/migration_test.dart`.
 abstract final class Migrations {
-  static const currentVersion = 4;
+  static const currentVersion = 5;
 
   static MigrationStrategy strategy(AppDatabase db) => MigrationStrategy(
     onCreate: (m) async {
@@ -30,6 +30,15 @@ abstract final class Migrations {
         // v4: traces of postponed tasks.
         await m.createTable(db.postponements);
         await m.createIndex(db.idxPostponementsCreated);
+      }
+      if (from < 5 && to >= 5) {
+        // v5: experiments and runs, tasks linked to them.
+        await m.createTable(db.experiments);
+        await m.createTable(db.experimentRuns);
+        await m.createIndex(db.idxRunsExperiment);
+        await m.addColumn(db.tasks, db.tasks.experimentId);
+        await m.addColumn(db.tasks, db.tasks.runId);
+        await m.createIndex(db.idxTasksExperiment);
       }
     },
     beforeOpen: (details) async {

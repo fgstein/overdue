@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:overdue/src/core/local_date.dart';
 import 'package:overdue/src/data/database.dart';
 import 'package:overdue/src/data/database_opener.dart';
+import 'package:overdue/src/data/experiment_repository.dart';
 import 'package:overdue/src/data/project_repository.dart';
 import 'package:overdue/src/data/settings_repository.dart';
 import 'package:overdue/src/data/task_repository.dart';
@@ -13,12 +14,14 @@ class TestEnv {
     db = openMemoryDatabase();
     tasks = TaskRepository(db, clock: clock);
     projects = ProjectRepository(db, clock: clock);
+    experiments = ExperimentRepository(db, clock: clock);
   }
 
   final FixedClock clock;
   late final AppDatabase db;
   late final TaskRepository tasks;
   late final ProjectRepository projects;
+  late final ExperimentRepository experiments;
 
   LocalDate get today => clock.today();
 

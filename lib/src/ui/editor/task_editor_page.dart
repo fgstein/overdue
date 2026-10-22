@@ -7,8 +7,11 @@ import '../../app/app_services.dart';
 import '../../core/local_date.dart';
 import '../../data/task_repository.dart';
 import '../../domain/enums.dart';
+import '../../domain/experiments.dart';
 import '../../domain/models.dart';
 import '../../domain/recurrence.dart';
+import '../experiments/experiment_dialogs.dart';
+import '../experiments/experiment_page.dart';
 import '../formatting.dart';
 import '../task_actions.dart';
 import '../theme.dart';
@@ -311,6 +314,7 @@ class _TaskEditorPageState extends State<TaskEditorPage> {
               );
             },
           ),
+        _ExperimentChip(task: task),
       ],
     );
   }
@@ -453,6 +457,70 @@ class _Breadcrumb extends StatelessWidget {
           ],
           const Text('Subtask'),
         ],
+      ),
+    );
+  }
+}
+
+/// The experiment (and run) the task belongs to: tap to change, open it
+/// from the menu.
+class _ExperimentChip extends StatelessWidget {
+  const _ExperimentChip({required this.task});
+  final Task task;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final expId = task.experimentId;
+    Future<void> pick() async {
+      final link = await ExperimentUi.pickLink(context, current: expId);
+      if (link != null) await s.experiments.linkTask(task.id, experimentId: link.experimentId, runId: link.runId);
+    }
+
+    if (expId == null) {
+      return ActionChip(
+        avatar: const Icon(Icons.science_outlined, size: 18),
+        label: const Text('No experiment'),
+        tooltip: 'Link to an experiment or run',
+        onPressed: pick,
+      );
+    }
+    return LiveQuery<Experiment?>(
+      id: 'exp$expId',
+      stream: () => s.experiments.watchExperiment(expId),
+      builder: (context, e) => LiveQuery<List<ExperimentRun>>(
+        id: 'runs$expId',
+        stream: () => s.experiments.watchRuns(expId),
+        builder: (context, runs) {
+          final run = runs?.where((r) => r.id == task.runId).firstOrNull;
+          final label = e == null ? 'Experiment' : (run == null ? e.name : '${e.name} › ${run.label}');
+          return PopupMenuButton<String>(
+            tooltip: 'Experiment',
+            onSelected: (v) async {
+              switch (v) {
+                case 'open':
+                  await ExperimentPage.open(context, expId);
+                case 'mlflow':
+                  await ExperimentUi.openUrl(context, run?.url ?? e?.mlflowUrl);
+                case 'change':
+                  await pick();
+                case 'unlink':
+                  await s.experiments.unlinkTask(task.id);
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'open', child: Text('Open the experiment')),
+              if ((run?.url ?? e?.mlflowUrl) != null)
+                PopupMenuItem(
+                  value: 'mlflow',
+                  child: Text(run?.url != null ? 'Open the run in MLflow' : 'Open in MLflow'),
+                ),
+              const PopupMenuItem(value: 'change', child: Text('Change…')),
+              const PopupMenuItem(value: 'unlink', child: Text('Unlink')),
+            ],
+            child: Chip(avatar: const Icon(Icons.science, size: 18), label: Text(label)),
+          );
+        },
       ),
     );
   }

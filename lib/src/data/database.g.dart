@@ -334,6 +334,961 @@ class ProjectsCompanion extends UpdateCompanion<ProjectRow> {
   }
 }
 
+class $ExperimentsTable extends Experiments with TableInfo<$ExperimentsTable, ExperimentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExperimentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 200),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _projectIdMeta = const VerificationMeta('projectId');
+  @override
+  late final GeneratedColumn<int> projectId = GeneratedColumn<int>(
+    'project_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES projects (id) ON DELETE SET NULL'),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<int> status = GeneratedColumn<int>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _conclusionMeta = const VerificationMeta('conclusion');
+  @override
+  late final GeneratedColumn<String> conclusion = GeneratedColumn<String>(
+    'conclusion',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _mlflowUrlMeta = const VerificationMeta('mlflowUrl');
+  @override
+  late final GeneratedColumn<String> mlflowUrl = GeneratedColumn<String>(
+    'mlflow_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    projectId,
+    status,
+    description,
+    conclusion,
+    mlflowUrl,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'experiments';
+  @override
+  VerificationContext validateIntegrity(Insertable<ExperimentRow> instance, {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(_nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('project_id')) {
+      context.handle(_projectIdMeta, projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta, status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(_descriptionMeta, description.isAcceptableOrUnknown(data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('conclusion')) {
+      context.handle(_conclusionMeta, conclusion.isAcceptableOrUnknown(data['conclusion']!, _conclusionMeta));
+    }
+    if (data.containsKey('mlflow_url')) {
+      context.handle(_mlflowUrlMeta, mlflowUrl.isAcceptableOrUnknown(data['mlflow_url']!, _mlflowUrlMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta, updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExperimentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExperimentRow(
+      id: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      projectId: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}project_id']),
+      status: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}status'])!,
+      description: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}description'])!,
+      conclusion: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}conclusion'])!,
+      mlflowUrl: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}mlflow_url']),
+      createdAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ExperimentsTable createAlias(String alias) {
+    return $ExperimentsTable(attachedDatabase, alias);
+  }
+}
+
+class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
+  final int id;
+  final String name;
+  final int? projectId;
+  final int status;
+  final String description;
+  final String conclusion;
+  final String? mlflowUrl;
+  final int createdAt;
+  final int updatedAt;
+  const ExperimentRow({
+    required this.id,
+    required this.name,
+    this.projectId,
+    required this.status,
+    required this.description,
+    required this.conclusion,
+    this.mlflowUrl,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || projectId != null) {
+      map['project_id'] = Variable<int>(projectId);
+    }
+    map['status'] = Variable<int>(status);
+    map['description'] = Variable<String>(description);
+    map['conclusion'] = Variable<String>(conclusion);
+    if (!nullToAbsent || mlflowUrl != null) {
+      map['mlflow_url'] = Variable<String>(mlflowUrl);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  ExperimentsCompanion toCompanion(bool nullToAbsent) {
+    return ExperimentsCompanion(
+      id: Value(id),
+      name: Value(name),
+      projectId: projectId == null && nullToAbsent ? const Value.absent() : Value(projectId),
+      status: Value(status),
+      description: Value(description),
+      conclusion: Value(conclusion),
+      mlflowUrl: mlflowUrl == null && nullToAbsent ? const Value.absent() : Value(mlflowUrl),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ExperimentRow.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExperimentRow(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      projectId: serializer.fromJson<int?>(json['projectId']),
+      status: serializer.fromJson<int>(json['status']),
+      description: serializer.fromJson<String>(json['description']),
+      conclusion: serializer.fromJson<String>(json['conclusion']),
+      mlflowUrl: serializer.fromJson<String?>(json['mlflowUrl']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'projectId': serializer.toJson<int?>(projectId),
+      'status': serializer.toJson<int>(status),
+      'description': serializer.toJson<String>(description),
+      'conclusion': serializer.toJson<String>(conclusion),
+      'mlflowUrl': serializer.toJson<String?>(mlflowUrl),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ExperimentRow copyWith({
+    int? id,
+    String? name,
+    Value<int?> projectId = const Value.absent(),
+    int? status,
+    String? description,
+    String? conclusion,
+    Value<String?> mlflowUrl = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+  }) => ExperimentRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    projectId: projectId.present ? projectId.value : this.projectId,
+    status: status ?? this.status,
+    description: description ?? this.description,
+    conclusion: conclusion ?? this.conclusion,
+    mlflowUrl: mlflowUrl.present ? mlflowUrl.value : this.mlflowUrl,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ExperimentRow copyWithCompanion(ExperimentsCompanion data) {
+    return ExperimentRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      status: data.status.present ? data.status.value : this.status,
+      description: data.description.present ? data.description.value : this.description,
+      conclusion: data.conclusion.present ? data.conclusion.value : this.conclusion,
+      mlflowUrl: data.mlflowUrl.present ? data.mlflowUrl.value : this.mlflowUrl,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExperimentRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('projectId: $projectId, ')
+          ..write('status: $status, ')
+          ..write('description: $description, ')
+          ..write('conclusion: $conclusion, ')
+          ..write('mlflowUrl: $mlflowUrl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, projectId, status, description, conclusion, mlflowUrl, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExperimentRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.projectId == this.projectId &&
+          other.status == this.status &&
+          other.description == this.description &&
+          other.conclusion == this.conclusion &&
+          other.mlflowUrl == this.mlflowUrl &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<int?> projectId;
+  final Value<int> status;
+  final Value<String> description;
+  final Value<String> conclusion;
+  final Value<String?> mlflowUrl;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const ExperimentsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.projectId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.description = const Value.absent(),
+    this.conclusion = const Value.absent(),
+    this.mlflowUrl = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  ExperimentsCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    this.projectId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.description = const Value.absent(),
+    this.conclusion = const Value.absent(),
+    this.mlflowUrl = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+  }) : name = Value(name),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ExperimentRow> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<int>? projectId,
+    Expression<int>? status,
+    Expression<String>? description,
+    Expression<String>? conclusion,
+    Expression<String>? mlflowUrl,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (projectId != null) 'project_id': projectId,
+      if (status != null) 'status': status,
+      if (description != null) 'description': description,
+      if (conclusion != null) 'conclusion': conclusion,
+      if (mlflowUrl != null) 'mlflow_url': mlflowUrl,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  ExperimentsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int?>? projectId,
+    Value<int>? status,
+    Value<String>? description,
+    Value<String>? conclusion,
+    Value<String?>? mlflowUrl,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return ExperimentsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      projectId: projectId ?? this.projectId,
+      status: status ?? this.status,
+      description: description ?? this.description,
+      conclusion: conclusion ?? this.conclusion,
+      mlflowUrl: mlflowUrl ?? this.mlflowUrl,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (projectId.present) {
+      map['project_id'] = Variable<int>(projectId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<int>(status.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (conclusion.present) {
+      map['conclusion'] = Variable<String>(conclusion.value);
+    }
+    if (mlflowUrl.present) {
+      map['mlflow_url'] = Variable<String>(mlflowUrl.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExperimentsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('projectId: $projectId, ')
+          ..write('status: $status, ')
+          ..write('description: $description, ')
+          ..write('conclusion: $conclusion, ')
+          ..write('mlflowUrl: $mlflowUrl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ExperimentRunsTable extends ExperimentRuns with TableInfo<$ExperimentRunsTable, ExperimentRunRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExperimentRunsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'),
+  );
+  static const VerificationMeta _experimentIdMeta = const VerificationMeta('experimentId');
+  @override
+  late final GeneratedColumn<int> experimentId = GeneratedColumn<int>(
+    'experiment_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES experiments (id) ON DELETE CASCADE'),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _mlflowRunIdMeta = const VerificationMeta('mlflowRunId');
+  @override
+  late final GeneratedColumn<String> mlflowRunId = GeneratedColumn<String>(
+    'mlflow_run_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<int> status = GeneratedColumn<int>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _reviewedAtMeta = const VerificationMeta('reviewedAt');
+  @override
+  late final GeneratedColumn<int> reviewedAt = GeneratedColumn<int>(
+    'reviewed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    experimentId,
+    name,
+    mlflowRunId,
+    url,
+    status,
+    notes,
+    reviewedAt,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'experiment_runs';
+  @override
+  VerificationContext validateIntegrity(Insertable<ExperimentRunRow> instance, {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('experiment_id')) {
+      context.handle(_experimentIdMeta, experimentId.isAcceptableOrUnknown(data['experiment_id']!, _experimentIdMeta));
+    } else if (isInserting) {
+      context.missing(_experimentIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(_nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    }
+    if (data.containsKey('mlflow_run_id')) {
+      context.handle(_mlflowRunIdMeta, mlflowRunId.isAcceptableOrUnknown(data['mlflow_run_id']!, _mlflowRunIdMeta));
+    }
+    if (data.containsKey('url')) {
+      context.handle(_urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta, status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('notes')) {
+      context.handle(_notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+    }
+    if (data.containsKey('reviewed_at')) {
+      context.handle(_reviewedAtMeta, reviewedAt.isAcceptableOrUnknown(data['reviewed_at']!, _reviewedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta, updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExperimentRunRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExperimentRunRow(
+      id: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      experimentId: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}experiment_id'])!,
+      name: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      mlflowRunId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}mlflow_run_id']),
+      url: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}url']),
+      status: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}status'])!,
+      notes: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}notes'])!,
+      reviewedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}reviewed_at']),
+      createdAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ExperimentRunsTable createAlias(String alias) {
+    return $ExperimentRunsTable(attachedDatabase, alias);
+  }
+}
+
+class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow> {
+  final int id;
+  final int experimentId;
+  final String name;
+  final String? mlflowRunId;
+  final String? url;
+  final int status;
+  final String notes;
+  final int? reviewedAt;
+  final int createdAt;
+  final int updatedAt;
+  const ExperimentRunRow({
+    required this.id,
+    required this.experimentId,
+    required this.name,
+    this.mlflowRunId,
+    this.url,
+    required this.status,
+    required this.notes,
+    this.reviewedAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['experiment_id'] = Variable<int>(experimentId);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || mlflowRunId != null) {
+      map['mlflow_run_id'] = Variable<String>(mlflowRunId);
+    }
+    if (!nullToAbsent || url != null) {
+      map['url'] = Variable<String>(url);
+    }
+    map['status'] = Variable<int>(status);
+    map['notes'] = Variable<String>(notes);
+    if (!nullToAbsent || reviewedAt != null) {
+      map['reviewed_at'] = Variable<int>(reviewedAt);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  ExperimentRunsCompanion toCompanion(bool nullToAbsent) {
+    return ExperimentRunsCompanion(
+      id: Value(id),
+      experimentId: Value(experimentId),
+      name: Value(name),
+      mlflowRunId: mlflowRunId == null && nullToAbsent ? const Value.absent() : Value(mlflowRunId),
+      url: url == null && nullToAbsent ? const Value.absent() : Value(url),
+      status: Value(status),
+      notes: Value(notes),
+      reviewedAt: reviewedAt == null && nullToAbsent ? const Value.absent() : Value(reviewedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ExperimentRunRow.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExperimentRunRow(
+      id: serializer.fromJson<int>(json['id']),
+      experimentId: serializer.fromJson<int>(json['experimentId']),
+      name: serializer.fromJson<String>(json['name']),
+      mlflowRunId: serializer.fromJson<String?>(json['mlflowRunId']),
+      url: serializer.fromJson<String?>(json['url']),
+      status: serializer.fromJson<int>(json['status']),
+      notes: serializer.fromJson<String>(json['notes']),
+      reviewedAt: serializer.fromJson<int?>(json['reviewedAt']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'experimentId': serializer.toJson<int>(experimentId),
+      'name': serializer.toJson<String>(name),
+      'mlflowRunId': serializer.toJson<String?>(mlflowRunId),
+      'url': serializer.toJson<String?>(url),
+      'status': serializer.toJson<int>(status),
+      'notes': serializer.toJson<String>(notes),
+      'reviewedAt': serializer.toJson<int?>(reviewedAt),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  ExperimentRunRow copyWith({
+    int? id,
+    int? experimentId,
+    String? name,
+    Value<String?> mlflowRunId = const Value.absent(),
+    Value<String?> url = const Value.absent(),
+    int? status,
+    String? notes,
+    Value<int?> reviewedAt = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+  }) => ExperimentRunRow(
+    id: id ?? this.id,
+    experimentId: experimentId ?? this.experimentId,
+    name: name ?? this.name,
+    mlflowRunId: mlflowRunId.present ? mlflowRunId.value : this.mlflowRunId,
+    url: url.present ? url.value : this.url,
+    status: status ?? this.status,
+    notes: notes ?? this.notes,
+    reviewedAt: reviewedAt.present ? reviewedAt.value : this.reviewedAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ExperimentRunRow copyWithCompanion(ExperimentRunsCompanion data) {
+    return ExperimentRunRow(
+      id: data.id.present ? data.id.value : this.id,
+      experimentId: data.experimentId.present ? data.experimentId.value : this.experimentId,
+      name: data.name.present ? data.name.value : this.name,
+      mlflowRunId: data.mlflowRunId.present ? data.mlflowRunId.value : this.mlflowRunId,
+      url: data.url.present ? data.url.value : this.url,
+      status: data.status.present ? data.status.value : this.status,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      reviewedAt: data.reviewedAt.present ? data.reviewedAt.value : this.reviewedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExperimentRunRow(')
+          ..write('id: $id, ')
+          ..write('experimentId: $experimentId, ')
+          ..write('name: $name, ')
+          ..write('mlflowRunId: $mlflowRunId, ')
+          ..write('url: $url, ')
+          ..write('status: $status, ')
+          ..write('notes: $notes, ')
+          ..write('reviewedAt: $reviewedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, experimentId, name, mlflowRunId, url, status, notes, reviewedAt, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExperimentRunRow &&
+          other.id == this.id &&
+          other.experimentId == this.experimentId &&
+          other.name == this.name &&
+          other.mlflowRunId == this.mlflowRunId &&
+          other.url == this.url &&
+          other.status == this.status &&
+          other.notes == this.notes &&
+          other.reviewedAt == this.reviewedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ExperimentRunsCompanion extends UpdateCompanion<ExperimentRunRow> {
+  final Value<int> id;
+  final Value<int> experimentId;
+  final Value<String> name;
+  final Value<String?> mlflowRunId;
+  final Value<String?> url;
+  final Value<int> status;
+  final Value<String> notes;
+  final Value<int?> reviewedAt;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  const ExperimentRunsCompanion({
+    this.id = const Value.absent(),
+    this.experimentId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.mlflowRunId = const Value.absent(),
+    this.url = const Value.absent(),
+    this.status = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.reviewedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  ExperimentRunsCompanion.insert({
+    this.id = const Value.absent(),
+    required int experimentId,
+    this.name = const Value.absent(),
+    this.mlflowRunId = const Value.absent(),
+    this.url = const Value.absent(),
+    this.status = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.reviewedAt = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+  }) : experimentId = Value(experimentId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ExperimentRunRow> custom({
+    Expression<int>? id,
+    Expression<int>? experimentId,
+    Expression<String>? name,
+    Expression<String>? mlflowRunId,
+    Expression<String>? url,
+    Expression<int>? status,
+    Expression<String>? notes,
+    Expression<int>? reviewedAt,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (experimentId != null) 'experiment_id': experimentId,
+      if (name != null) 'name': name,
+      if (mlflowRunId != null) 'mlflow_run_id': mlflowRunId,
+      if (url != null) 'url': url,
+      if (status != null) 'status': status,
+      if (notes != null) 'notes': notes,
+      if (reviewedAt != null) 'reviewed_at': reviewedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  ExperimentRunsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? experimentId,
+    Value<String>? name,
+    Value<String?>? mlflowRunId,
+    Value<String?>? url,
+    Value<int>? status,
+    Value<String>? notes,
+    Value<int?>? reviewedAt,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+  }) {
+    return ExperimentRunsCompanion(
+      id: id ?? this.id,
+      experimentId: experimentId ?? this.experimentId,
+      name: name ?? this.name,
+      mlflowRunId: mlflowRunId ?? this.mlflowRunId,
+      url: url ?? this.url,
+      status: status ?? this.status,
+      notes: notes ?? this.notes,
+      reviewedAt: reviewedAt ?? this.reviewedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (experimentId.present) {
+      map['experiment_id'] = Variable<int>(experimentId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (mlflowRunId.present) {
+      map['mlflow_run_id'] = Variable<String>(mlflowRunId.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<int>(status.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (reviewedAt.present) {
+      map['reviewed_at'] = Variable<int>(reviewedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExperimentRunsCompanion(')
+          ..write('id: $id, ')
+          ..write('experimentId: $experimentId, ')
+          ..write('name: $name, ')
+          ..write('mlflowRunId: $mlflowRunId, ')
+          ..write('url: $url, ')
+          ..write('status: $status, ')
+          ..write('notes: $notes, ')
+          ..write('reviewedAt: $reviewedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -511,6 +1466,26 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _experimentIdMeta = const VerificationMeta('experimentId');
+  @override
+  late final GeneratedColumn<int> experimentId = GeneratedColumn<int>(
+    'experiment_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES experiments (id) ON DELETE SET NULL'),
+  );
+  static const VerificationMeta _runIdMeta = const VerificationMeta('runId');
+  @override
+  late final GeneratedColumn<int> runId = GeneratedColumn<int>(
+    'run_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES experiment_runs (id) ON DELETE SET NULL'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -531,6 +1506,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     completedAt,
     archivedAt,
     dayOrder,
+    experimentId,
+    runId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -607,6 +1584,12 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     if (data.containsKey('day_order')) {
       context.handle(_dayOrderMeta, dayOrder.isAcceptableOrUnknown(data['day_order']!, _dayOrderMeta));
     }
+    if (data.containsKey('experiment_id')) {
+      context.handle(_experimentIdMeta, experimentId.isAcceptableOrUnknown(data['experiment_id']!, _experimentIdMeta));
+    }
+    if (data.containsKey('run_id')) {
+      context.handle(_runIdMeta, runId.isAcceptableOrUnknown(data['run_id']!, _runIdMeta));
+    }
     return context;
   }
 
@@ -637,6 +1620,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
       completedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}completed_at']),
       archivedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}archived_at']),
       dayOrder: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}day_order'])!,
+      experimentId: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}experiment_id']),
+      runId: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}run_id']),
     );
   }
 
@@ -675,6 +1660,11 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   /// Manual order within an agenda day (drag and drop); 0 = not ordered,
   /// which sorts after ordered tasks by priority/time. Added in schema v3.
   final int dayOrder;
+
+  /// Experiment (and optionally one of its runs) the task belongs to.
+  /// Added in schema v5.
+  final int? experimentId;
+  final int? runId;
   const TaskRow({
     required this.id,
     this.parentId,
@@ -694,6 +1684,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     this.completedAt,
     this.archivedAt,
     required this.dayOrder,
+    this.experimentId,
+    this.runId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -732,6 +1724,12 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       map['archived_at'] = Variable<int>(archivedAt);
     }
     map['day_order'] = Variable<int>(dayOrder);
+    if (!nullToAbsent || experimentId != null) {
+      map['experiment_id'] = Variable<int>(experimentId);
+    }
+    if (!nullToAbsent || runId != null) {
+      map['run_id'] = Variable<int>(runId);
+    }
     return map;
   }
 
@@ -757,6 +1755,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       completedAt: completedAt == null && nullToAbsent ? const Value.absent() : Value(completedAt),
       archivedAt: archivedAt == null && nullToAbsent ? const Value.absent() : Value(archivedAt),
       dayOrder: Value(dayOrder),
+      experimentId: experimentId == null && nullToAbsent ? const Value.absent() : Value(experimentId),
+      runId: runId == null && nullToAbsent ? const Value.absent() : Value(runId),
     );
   }
 
@@ -781,6 +1781,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       completedAt: serializer.fromJson<int?>(json['completedAt']),
       archivedAt: serializer.fromJson<int?>(json['archivedAt']),
       dayOrder: serializer.fromJson<int>(json['dayOrder']),
+      experimentId: serializer.fromJson<int?>(json['experimentId']),
+      runId: serializer.fromJson<int?>(json['runId']),
     );
   }
   @override
@@ -805,6 +1807,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       'completedAt': serializer.toJson<int?>(completedAt),
       'archivedAt': serializer.toJson<int?>(archivedAt),
       'dayOrder': serializer.toJson<int>(dayOrder),
+      'experimentId': serializer.toJson<int?>(experimentId),
+      'runId': serializer.toJson<int?>(runId),
     };
   }
 
@@ -827,6 +1831,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     Value<int?> completedAt = const Value.absent(),
     Value<int?> archivedAt = const Value.absent(),
     int? dayOrder,
+    Value<int?> experimentId = const Value.absent(),
+    Value<int?> runId = const Value.absent(),
   }) => TaskRow(
     id: id ?? this.id,
     parentId: parentId.present ? parentId.value : this.parentId,
@@ -848,6 +1854,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     dayOrder: dayOrder ?? this.dayOrder,
+    experimentId: experimentId.present ? experimentId.value : this.experimentId,
+    runId: runId.present ? runId.value : this.runId,
   );
   TaskRow copyWithCompanion(TasksCompanion data) {
     return TaskRow(
@@ -871,6 +1879,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       completedAt: data.completedAt.present ? data.completedAt.value : this.completedAt,
       archivedAt: data.archivedAt.present ? data.archivedAt.value : this.archivedAt,
       dayOrder: data.dayOrder.present ? data.dayOrder.value : this.dayOrder,
+      experimentId: data.experimentId.present ? data.experimentId.value : this.experimentId,
+      runId: data.runId.present ? data.runId.value : this.runId,
     );
   }
 
@@ -894,7 +1904,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('completedAt: $completedAt, ')
           ..write('archivedAt: $archivedAt, ')
-          ..write('dayOrder: $dayOrder')
+          ..write('dayOrder: $dayOrder, ')
+          ..write('experimentId: $experimentId, ')
+          ..write('runId: $runId')
           ..write(')'))
         .toString();
   }
@@ -919,6 +1931,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     completedAt,
     archivedAt,
     dayOrder,
+    experimentId,
+    runId,
   );
   @override
   bool operator ==(Object other) =>
@@ -941,7 +1955,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           other.updatedAt == this.updatedAt &&
           other.completedAt == this.completedAt &&
           other.archivedAt == this.archivedAt &&
-          other.dayOrder == this.dayOrder);
+          other.dayOrder == this.dayOrder &&
+          other.experimentId == this.experimentId &&
+          other.runId == this.runId);
 }
 
 class TasksCompanion extends UpdateCompanion<TaskRow> {
@@ -963,6 +1979,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   final Value<int?> completedAt;
   final Value<int?> archivedAt;
   final Value<int> dayOrder;
+  final Value<int?> experimentId;
+  final Value<int?> runId;
   const TasksCompanion({
     this.id = const Value.absent(),
     this.parentId = const Value.absent(),
@@ -982,6 +2000,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.completedAt = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.dayOrder = const Value.absent(),
+    this.experimentId = const Value.absent(),
+    this.runId = const Value.absent(),
   });
   TasksCompanion.insert({
     this.id = const Value.absent(),
@@ -1002,6 +2022,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.completedAt = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.dayOrder = const Value.absent(),
+    this.experimentId = const Value.absent(),
+    this.runId = const Value.absent(),
   }) : title = Value(title),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
@@ -1024,6 +2046,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Expression<int>? completedAt,
     Expression<int>? archivedAt,
     Expression<int>? dayOrder,
+    Expression<int>? experimentId,
+    Expression<int>? runId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1044,6 +2068,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       if (completedAt != null) 'completed_at': completedAt,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (dayOrder != null) 'day_order': dayOrder,
+      if (experimentId != null) 'experiment_id': experimentId,
+      if (runId != null) 'run_id': runId,
     });
   }
 
@@ -1066,6 +2092,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Value<int?>? completedAt,
     Value<int?>? archivedAt,
     Value<int>? dayOrder,
+    Value<int?>? experimentId,
+    Value<int?>? runId,
   }) {
     return TasksCompanion(
       id: id ?? this.id,
@@ -1086,6 +2114,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       completedAt: completedAt ?? this.completedAt,
       archivedAt: archivedAt ?? this.archivedAt,
       dayOrder: dayOrder ?? this.dayOrder,
+      experimentId: experimentId ?? this.experimentId,
+      runId: runId ?? this.runId,
     );
   }
 
@@ -1146,6 +2176,12 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     if (dayOrder.present) {
       map['day_order'] = Variable<int>(dayOrder.value);
     }
+    if (experimentId.present) {
+      map['experiment_id'] = Variable<int>(experimentId.value);
+    }
+    if (runId.present) {
+      map['run_id'] = Variable<int>(runId.value);
+    }
     return map;
   }
 
@@ -1169,7 +2205,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('completedAt: $completedAt, ')
           ..write('archivedAt: $archivedAt, ')
-          ..write('dayOrder: $dayOrder')
+          ..write('dayOrder: $dayOrder, ')
+          ..write('experimentId: $experimentId, ')
+          ..write('runId: $runId')
           ..write(')'))
         .toString();
   }
@@ -3225,6 +4263,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $ProjectsTable projects = $ProjectsTable(this);
+  late final $ExperimentsTable experiments = $ExperimentsTable(this);
+  late final $ExperimentRunsTable experimentRuns = $ExperimentRunsTable(this);
   late final $TasksTable tasks = $TasksTable(this);
   late final $OccurrencesTable occurrences = $OccurrencesTable(this);
   late final $RemindersTable reminders = $RemindersTable(this);
@@ -3248,6 +4288,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index idxTasksCompleted = Index(
     'idx_tasks_completed',
     'CREATE INDEX idx_tasks_completed ON tasks (completed_at)',
+  );
+  late final Index idxTasksExperiment = Index(
+    'idx_tasks_experiment',
+    'CREATE INDEX idx_tasks_experiment ON tasks (experiment_id)',
   );
   late final Index idxOccStatusDate = Index(
     'idx_occ_status_date',
@@ -3273,11 +4317,17 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_postponements_created',
     'CREATE INDEX idx_postponements_created ON postponements (created_at)',
   );
+  late final Index idxRunsExperiment = Index(
+    'idx_runs_experiment',
+    'CREATE INDEX idx_runs_experiment ON experiment_runs (experiment_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     projects,
+    experiments,
+    experimentRuns,
     tasks,
     occurrences,
     reminders,
@@ -3290,21 +4340,39 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxTasksTypeStatus,
     idxTasksUpdated,
     idxTasksCompleted,
+    idxTasksExperiment,
     idxOccStatusDate,
     idxOccTaskDate,
     idxRemindersTask,
     idxSchedFire,
     idxSchedKey,
     idxPostponementsCreated,
+    idxRunsExperiment,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName('projects', limitUpdateKind: UpdateKind.delete),
+      result: [TableUpdate('experiments', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName('experiments', limitUpdateKind: UpdateKind.delete),
+      result: [TableUpdate('experiment_runs', kind: UpdateKind.delete)],
+    ),
     WritePropagation(
       on: TableUpdateQuery.onTableName('tasks', limitUpdateKind: UpdateKind.delete),
       result: [TableUpdate('tasks', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName('projects', limitUpdateKind: UpdateKind.delete),
+      result: [TableUpdate('tasks', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName('experiments', limitUpdateKind: UpdateKind.delete),
+      result: [TableUpdate('tasks', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName('experiment_runs', limitUpdateKind: UpdateKind.delete),
       result: [TableUpdate('tasks', kind: UpdateKind.update)],
     ),
     WritePropagation(
@@ -3342,6 +4410,19 @@ typedef $$ProjectsTableUpdateCompanionBuilder = ProjectsCompanion Function({
 final class $$ProjectsTableReferences extends BaseReferences<_$AppDatabase, $ProjectsTable, ProjectRow> {
   $$ProjectsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
+  static MultiTypedResultKey<$ExperimentsTable, List<ExperimentRow>> _experimentsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.experiments, aliasName: 'projects__id__experiments__project_id');
+
+  $$ExperimentsTableProcessedTableManager get experimentsRefs {
+    final manager = $$ExperimentsTableTableManager(
+      $_db,
+      $_db.experiments,
+    ).filter((f) => f.projectId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_experimentsRefsTable($_db));
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: cache));
+  }
+
   static MultiTypedResultKey<$TasksTable, List<TaskRow>> _tasksRefsTable(_$AppDatabase db) =>
       MultiTypedResultKey.fromTable(db.tasks, aliasName: 'projects__id__tasks__project_id');
 
@@ -3378,6 +4459,24 @@ class $$ProjectsTableFilterComposer extends Composer<_$AppDatabase, $ProjectsTab
 
   ColumnFilters<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  Expression<bool> experimentsRefs(Expression<bool> Function($$ExperimentsTableFilterComposer f) f) {
+    final $$ExperimentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.experiments,
+      getReferencedColumn: (t) => t.projectId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentsTableFilterComposer(
+            $db: $db,
+            $table: $db.experiments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<bool> tasksRefs(Expression<bool> Function($$TasksTableFilterComposer f) f) {
     final $$TasksTableFilterComposer composer = $composerBuilder(
@@ -3444,6 +4543,24 @@ class $$ProjectsTableAnnotationComposer extends Composer<_$AppDatabase, $Project
 
   GeneratedColumn<int> get updatedAt => $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
+  Expression<T> experimentsRefs<T extends Object>(Expression<T> Function($$ExperimentsTableAnnotationComposer a) f) {
+    final $$ExperimentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.experiments,
+      getReferencedColumn: (t) => t.projectId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.experiments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> tasksRefs<T extends Object>(Expression<T> Function($$TasksTableAnnotationComposer a) f) {
     final $$TasksTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -3476,7 +4593,7 @@ class $$ProjectsTableTableManager
           $$ProjectsTableUpdateCompanionBuilder,
           (ProjectRow, $$ProjectsTableReferences),
           ProjectRow,
-          PrefetchHooks Function({bool tasksRefs})
+          PrefetchHooks Function({bool experimentsRefs, bool tasksRefs})
         > {
   $$ProjectsTableTableManager(_$AppDatabase db, $ProjectsTable table)
     : super(
@@ -3521,13 +4638,22 @@ class $$ProjectsTableTableManager
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable<$ProjectsTable, ProjectRow>(table), $$ProjectsTableReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({tasksRefs = false}) {
+          prefetchHooksCallback: ({experimentsRefs = false, tasksRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [if (tasksRefs) db.tasks],
+              explicitlyWatchedTables: [if (experimentsRefs) db.experiments, if (tasksRefs) db.tasks],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
+                  if (experimentsRefs)
+                    await $_getPrefetchedData<ProjectRow, $ProjectsTable, ExperimentRow>(
+                      currentTable: table,
+                      referencedTable: $$ProjectsTableReferences._experimentsRefsTable(db),
+                      managerFromTypedResult: (p0) => $$ProjectsTableReferences(db, table, p0).experimentsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.projectId == item.id),
+                      typedResults: items,
+                    ),
                   if (tasksRefs)
                     await $_getPrefetchedData<ProjectRow, $ProjectsTable, TaskRow>(
                       currentTable: table,
@@ -3557,7 +4683,819 @@ typedef $$ProjectsTableProcessedTableManager =
       $$ProjectsTableUpdateCompanionBuilder,
       (ProjectRow, $$ProjectsTableReferences),
       ProjectRow,
-      PrefetchHooks Function({bool tasksRefs})
+      PrefetchHooks Function({bool experimentsRefs, bool tasksRefs})
+    >;
+typedef $$ExperimentsTableCreateCompanionBuilder = ExperimentsCompanion Function({
+  Value<int> id,
+  required String name,
+  Value<int?> projectId,
+  Value<int> status,
+  Value<String> description,
+  Value<String> conclusion,
+  Value<String?> mlflowUrl,
+  required int createdAt,
+  required int updatedAt,
+});
+typedef $$ExperimentsTableUpdateCompanionBuilder = ExperimentsCompanion Function({
+  Value<int> id,
+  Value<String> name,
+  Value<int?> projectId,
+  Value<int> status,
+  Value<String> description,
+  Value<String> conclusion,
+  Value<String?> mlflowUrl,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+});
+
+final class $$ExperimentsTableReferences extends BaseReferences<_$AppDatabase, $ExperimentsTable, ExperimentRow> {
+  $$ExperimentsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ProjectsTable _projectIdTable(_$AppDatabase db) =>
+      db.projects.createAlias('experiments__project_id__projects__id');
+
+  $$ProjectsTableProcessedTableManager? get projectId {
+    final $_column = $_itemColumn<int>('project_id');
+    if ($_column == null) return null;
+    final manager = $$ProjectsTableTableManager($_db, $_db.projects).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static MultiTypedResultKey<$ExperimentRunsTable, List<ExperimentRunRow>> _experimentRunsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.experimentRuns, aliasName: 'experiments__id__experiment_runs__experiment_id');
+
+  $$ExperimentRunsTableProcessedTableManager get experimentRunsRefs {
+    final manager = $$ExperimentRunsTableTableManager(
+      $_db,
+      $_db.experimentRuns,
+    ).filter((f) => f.experimentId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_experimentRunsRefsTable($_db));
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$TasksTable, List<TaskRow>> _tasksRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.tasks, aliasName: 'experiments__id__tasks__experiment_id');
+
+  $$TasksTableProcessedTableManager get tasksRefs {
+    final manager = $$TasksTableTableManager(
+      $_db,
+      $_db.tasks,
+    ).filter((f) => f.experimentId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_tasksRefsTable($_db));
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
+class $$ExperimentsTableFilterComposer extends Composer<_$AppDatabase, $ExperimentsTable> {
+  $$ExperimentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description =>
+      $composableBuilder(column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get conclusion =>
+      $composableBuilder(column: $table.conclusion, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mlflowUrl =>
+      $composableBuilder(column: $table.mlflowUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  $$ProjectsTableFilterComposer get projectId {
+    final $$ProjectsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ProjectsTableFilterComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> experimentRunsRefs(Expression<bool> Function($$ExperimentRunsTableFilterComposer f) f) {
+    final $$ExperimentRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.experimentRuns,
+      getReferencedColumn: (t) => t.experimentId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.experimentRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> tasksRefs(Expression<bool> Function($$TasksTableFilterComposer f) f) {
+    final $$TasksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.tasks,
+      getReferencedColumn: (t) => t.experimentId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$TasksTableFilterComposer(
+            $db: $db,
+            $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ExperimentsTableOrderingComposer extends Composer<_$AppDatabase, $ExperimentsTable> {
+  $$ExperimentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description =>
+      $composableBuilder(column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get conclusion =>
+      $composableBuilder(column: $table.conclusion, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mlflowUrl =>
+      $composableBuilder(column: $table.mlflowUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  $$ProjectsTableOrderingComposer get projectId {
+    final $$ProjectsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ProjectsTableOrderingComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExperimentsTableAnnotationComposer extends Composer<_$AppDatabase, $ExperimentsTable> {
+  $$ExperimentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name => $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get status => $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get description =>
+      $composableBuilder(column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get conclusion => $composableBuilder(column: $table.conclusion, builder: (column) => column);
+
+  GeneratedColumn<String> get mlflowUrl => $composableBuilder(column: $table.mlflowUrl, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt => $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt => $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$ProjectsTableAnnotationComposer get projectId {
+    final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.projectId,
+      referencedTable: $db.projects,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ProjectsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> experimentRunsRefs<T extends Object>(
+    Expression<T> Function($$ExperimentRunsTableAnnotationComposer a) f,
+  ) {
+    final $$ExperimentRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.experimentRuns,
+      getReferencedColumn: (t) => t.experimentId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.experimentRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> tasksRefs<T extends Object>(Expression<T> Function($$TasksTableAnnotationComposer a) f) {
+    final $$TasksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.tasks,
+      getReferencedColumn: (t) => t.experimentId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$TasksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ExperimentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExperimentsTable,
+          ExperimentRow,
+          $$ExperimentsTableFilterComposer,
+          $$ExperimentsTableOrderingComposer,
+          $$ExperimentsTableAnnotationComposer,
+          $$ExperimentsTableCreateCompanionBuilder,
+          $$ExperimentsTableUpdateCompanionBuilder,
+          (ExperimentRow, $$ExperimentsTableReferences),
+          ExperimentRow,
+          PrefetchHooks Function({bool projectId, bool experimentRunsRefs, bool tasksRefs})
+        > {
+  $$ExperimentsTableTableManager(_$AppDatabase db, $ExperimentsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () => $$ExperimentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () => $$ExperimentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () => $$ExperimentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int?> projectId = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<String> conclusion = const Value.absent(),
+                Value<String?> mlflowUrl = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => ExperimentsCompanion(
+                id: id,
+                name: name,
+                projectId: projectId,
+                status: status,
+                description: description,
+                conclusion: conclusion,
+                mlflowUrl: mlflowUrl,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<int?> projectId = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<String> conclusion = const Value.absent(),
+                Value<String?> mlflowUrl = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => ExperimentsCompanion.insert(
+                id: id,
+                name: name,
+                projectId: projectId,
+                status: status,
+                description: description,
+                conclusion: conclusion,
+                mlflowUrl: mlflowUrl,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) =>
+                    (e.readTable<$ExperimentsTable, ExperimentRow>(table), $$ExperimentsTableReferences(db, table, e)),
+              )
+              .toList(),
+          prefetchHooksCallback: ({projectId = false, experimentRunsRefs = false, tasksRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (experimentRunsRefs) db.experimentRuns, if (tasksRefs) db.tasks],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (projectId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.projectId,
+                        referencedTable: $$ExperimentsTableReferences._projectIdTable(db),
+                        referencedColumn: $$ExperimentsTableReferences._projectIdTable(db).id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (experimentRunsRefs)
+                    await $_getPrefetchedData<ExperimentRow, $ExperimentsTable, ExperimentRunRow>(
+                      currentTable: table,
+                      referencedTable: $$ExperimentsTableReferences._experimentRunsRefsTable(db),
+                      managerFromTypedResult: (p0) => $$ExperimentsTableReferences(db, table, p0).experimentRunsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.experimentId == item.id),
+                      typedResults: items,
+                    ),
+                  if (tasksRefs)
+                    await $_getPrefetchedData<ExperimentRow, $ExperimentsTable, TaskRow>(
+                      currentTable: table,
+                      referencedTable: $$ExperimentsTableReferences._tasksRefsTable(db),
+                      managerFromTypedResult: (p0) => $$ExperimentsTableReferences(db, table, p0).tasksRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.experimentId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ExperimentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExperimentsTable,
+      ExperimentRow,
+      $$ExperimentsTableFilterComposer,
+      $$ExperimentsTableOrderingComposer,
+      $$ExperimentsTableAnnotationComposer,
+      $$ExperimentsTableCreateCompanionBuilder,
+      $$ExperimentsTableUpdateCompanionBuilder,
+      (ExperimentRow, $$ExperimentsTableReferences),
+      ExperimentRow,
+      PrefetchHooks Function({bool projectId, bool experimentRunsRefs, bool tasksRefs})
+    >;
+typedef $$ExperimentRunsTableCreateCompanionBuilder = ExperimentRunsCompanion Function({
+  Value<int> id,
+  required int experimentId,
+  Value<String> name,
+  Value<String?> mlflowRunId,
+  Value<String?> url,
+  Value<int> status,
+  Value<String> notes,
+  Value<int?> reviewedAt,
+  required int createdAt,
+  required int updatedAt,
+});
+typedef $$ExperimentRunsTableUpdateCompanionBuilder = ExperimentRunsCompanion Function({
+  Value<int> id,
+  Value<int> experimentId,
+  Value<String> name,
+  Value<String?> mlflowRunId,
+  Value<String?> url,
+  Value<int> status,
+  Value<String> notes,
+  Value<int?> reviewedAt,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+});
+
+final class $$ExperimentRunsTableReferences
+    extends BaseReferences<_$AppDatabase, $ExperimentRunsTable, ExperimentRunRow> {
+  $$ExperimentRunsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ExperimentsTable _experimentIdTable(_$AppDatabase db) =>
+      db.experiments.createAlias('experiment_runs__experiment_id__experiments__id');
+
+  $$ExperimentsTableProcessedTableManager get experimentId {
+    final $_column = $_itemColumn<int>('experiment_id')!;
+
+    final manager = $$ExperimentsTableTableManager($_db, $_db.experiments).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_experimentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static MultiTypedResultKey<$TasksTable, List<TaskRow>> _tasksRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.tasks, aliasName: 'experiment_runs__id__tasks__run_id');
+
+  $$TasksTableProcessedTableManager get tasksRefs {
+    final manager = $$TasksTableTableManager(
+      $_db,
+      $_db.tasks,
+    ).filter((f) => f.runId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_tasksRefsTable($_db));
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
+class $$ExperimentRunsTableFilterComposer extends Composer<_$AppDatabase, $ExperimentRunsTable> {
+  $$ExperimentRunsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mlflowRunId =>
+      $composableBuilder(column: $table.mlflowRunId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get url => $composableBuilder(column: $table.url, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reviewedAt =>
+      $composableBuilder(column: $table.reviewedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  $$ExperimentsTableFilterComposer get experimentId {
+    final $$ExperimentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.experimentId,
+      referencedTable: $db.experiments,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentsTableFilterComposer(
+            $db: $db,
+            $table: $db.experiments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> tasksRefs(Expression<bool> Function($$TasksTableFilterComposer f) f) {
+    final $$TasksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.tasks,
+      getReferencedColumn: (t) => t.runId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$TasksTableFilterComposer(
+            $db: $db,
+            $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ExperimentRunsTableOrderingComposer extends Composer<_$AppDatabase, $ExperimentRunsTable> {
+  $$ExperimentRunsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mlflowRunId =>
+      $composableBuilder(column: $table.mlflowRunId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reviewedAt =>
+      $composableBuilder(column: $table.reviewedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  $$ExperimentsTableOrderingComposer get experimentId {
+    final $$ExperimentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.experimentId,
+      referencedTable: $db.experiments,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.experiments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExperimentRunsTableAnnotationComposer extends Composer<_$AppDatabase, $ExperimentRunsTable> {
+  $$ExperimentRunsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name => $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get mlflowRunId =>
+      $composableBuilder(column: $table.mlflowRunId, builder: (column) => column);
+
+  GeneratedColumn<String> get url => $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<int> get status => $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get notes => $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<int> get reviewedAt => $composableBuilder(column: $table.reviewedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt => $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt => $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$ExperimentsTableAnnotationComposer get experimentId {
+    final $$ExperimentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.experimentId,
+      referencedTable: $db.experiments,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.experiments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> tasksRefs<T extends Object>(Expression<T> Function($$TasksTableAnnotationComposer a) f) {
+    final $$TasksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.tasks,
+      getReferencedColumn: (t) => t.runId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$TasksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ExperimentRunsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExperimentRunsTable,
+          ExperimentRunRow,
+          $$ExperimentRunsTableFilterComposer,
+          $$ExperimentRunsTableOrderingComposer,
+          $$ExperimentRunsTableAnnotationComposer,
+          $$ExperimentRunsTableCreateCompanionBuilder,
+          $$ExperimentRunsTableUpdateCompanionBuilder,
+          (ExperimentRunRow, $$ExperimentRunsTableReferences),
+          ExperimentRunRow,
+          PrefetchHooks Function({bool experimentId, bool tasksRefs})
+        > {
+  $$ExperimentRunsTableTableManager(_$AppDatabase db, $ExperimentRunsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () => $$ExperimentRunsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () => $$ExperimentRunsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () => $$ExperimentRunsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> experimentId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> mlflowRunId = const Value.absent(),
+                Value<String?> url = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<String> notes = const Value.absent(),
+                Value<int?> reviewedAt = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+              }) => ExperimentRunsCompanion(
+                id: id,
+                experimentId: experimentId,
+                name: name,
+                mlflowRunId: mlflowRunId,
+                url: url,
+                status: status,
+                notes: notes,
+                reviewedAt: reviewedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int experimentId,
+                Value<String> name = const Value.absent(),
+                Value<String?> mlflowRunId = const Value.absent(),
+                Value<String?> url = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<String> notes = const Value.absent(),
+                Value<int?> reviewedAt = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+              }) => ExperimentRunsCompanion.insert(
+                id: id,
+                experimentId: experimentId,
+                name: name,
+                mlflowRunId: mlflowRunId,
+                url: url,
+                status: status,
+                notes: notes,
+                reviewedAt: reviewedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ExperimentRunsTable, ExperimentRunRow>(table),
+                  $$ExperimentRunsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({experimentId = false, tasksRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (tasksRefs) db.tasks],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (experimentId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.experimentId,
+                        referencedTable: $$ExperimentRunsTableReferences._experimentIdTable(db),
+                        referencedColumn: $$ExperimentRunsTableReferences._experimentIdTable(db).id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (tasksRefs)
+                    await $_getPrefetchedData<ExperimentRunRow, $ExperimentRunsTable, TaskRow>(
+                      currentTable: table,
+                      referencedTable: $$ExperimentRunsTableReferences._tasksRefsTable(db),
+                      managerFromTypedResult: (p0) => $$ExperimentRunsTableReferences(db, table, p0).tasksRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.runId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ExperimentRunsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExperimentRunsTable,
+      ExperimentRunRow,
+      $$ExperimentRunsTableFilterComposer,
+      $$ExperimentRunsTableOrderingComposer,
+      $$ExperimentRunsTableAnnotationComposer,
+      $$ExperimentRunsTableCreateCompanionBuilder,
+      $$ExperimentRunsTableUpdateCompanionBuilder,
+      (ExperimentRunRow, $$ExperimentRunsTableReferences),
+      ExperimentRunRow,
+      PrefetchHooks Function({bool experimentId, bool tasksRefs})
     >;
 typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
   Value<int> id,
@@ -3578,6 +5516,8 @@ typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
   Value<int?> completedAt,
   Value<int?> archivedAt,
   Value<int> dayOrder,
+  Value<int?> experimentId,
+  Value<int?> runId,
 });
 typedef $$TasksTableUpdateCompanionBuilder = TasksCompanion Function({
   Value<int> id,
@@ -3598,6 +5538,8 @@ typedef $$TasksTableUpdateCompanionBuilder = TasksCompanion Function({
   Value<int?> completedAt,
   Value<int?> archivedAt,
   Value<int> dayOrder,
+  Value<int?> experimentId,
+  Value<int?> runId,
 });
 
 final class $$TasksTableReferences extends BaseReferences<_$AppDatabase, $TasksTable, TaskRow> {
@@ -3621,6 +5563,33 @@ final class $$TasksTableReferences extends BaseReferences<_$AppDatabase, $TasksT
     if ($_column == null) return null;
     final manager = $$ProjectsTableTableManager($_db, $_db.projects).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $ExperimentsTable _experimentIdTable(_$AppDatabase db) =>
+      db.experiments.createAlias('tasks__experiment_id__experiments__id');
+
+  $$ExperimentsTableProcessedTableManager? get experimentId {
+    final $_column = $_itemColumn<int>('experiment_id');
+    if ($_column == null) return null;
+    final manager = $$ExperimentsTableTableManager($_db, $_db.experiments).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_experimentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $ExperimentRunsTable _runIdTable(_$AppDatabase db) =>
+      db.experimentRuns.createAlias('tasks__run_id__experiment_runs__id');
+
+  $$ExperimentRunsTableProcessedTableManager? get runId {
+    final $_column = $_itemColumn<int>('run_id');
+    if ($_column == null) return null;
+    final manager = $$ExperimentRunsTableTableManager(
+      $_db,
+      $_db.experimentRuns,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_runIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -3747,6 +5716,42 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
           $$ProjectsTableFilterComposer(
             $db: $db,
             $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExperimentsTableFilterComposer get experimentId {
+    final $$ExperimentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.experimentId,
+      referencedTable: $db.experiments,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentsTableFilterComposer(
+            $db: $db,
+            $table: $db.experiments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExperimentRunsTableFilterComposer get runId {
+    final $$ExperimentRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.experimentRuns,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.experimentRuns,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
@@ -3900,6 +5905,42 @@ class $$TasksTableOrderingComposer extends Composer<_$AppDatabase, $TasksTable> 
     );
     return composer;
   }
+
+  $$ExperimentsTableOrderingComposer get experimentId {
+    final $$ExperimentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.experimentId,
+      referencedTable: $db.experiments,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.experiments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExperimentRunsTableOrderingComposer get runId {
+    final $$ExperimentRunsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.experimentRuns,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentRunsTableOrderingComposer(
+            $db: $db,
+            $table: $db.experimentRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TasksTableAnnotationComposer extends Composer<_$AppDatabase, $TasksTable> {
@@ -3972,6 +6013,42 @@ class $$TasksTableAnnotationComposer extends Composer<_$AppDatabase, $TasksTable
           $$ProjectsTableAnnotationComposer(
             $db: $db,
             $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExperimentsTableAnnotationComposer get experimentId {
+    final $$ExperimentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.experimentId,
+      referencedTable: $db.experiments,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.experiments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExperimentRunsTableAnnotationComposer get runId {
+    final $$ExperimentRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.runId,
+      referencedTable: $db.experimentRuns,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$ExperimentRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.experimentRuns,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
@@ -4053,6 +6130,8 @@ class $$TasksTableTableManager
           PrefetchHooks Function({
             bool parentId,
             bool projectId,
+            bool experimentId,
+            bool runId,
             bool occurrencesRefs,
             bool remindersRefs,
             bool postponementsRefs,
@@ -4086,6 +6165,8 @@ class $$TasksTableTableManager
                 Value<int?> completedAt = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int> dayOrder = const Value.absent(),
+                Value<int?> experimentId = const Value.absent(),
+                Value<int?> runId = const Value.absent(),
               }) => TasksCompanion(
                 id: id,
                 parentId: parentId,
@@ -4105,6 +6186,8 @@ class $$TasksTableTableManager
                 completedAt: completedAt,
                 archivedAt: archivedAt,
                 dayOrder: dayOrder,
+                experimentId: experimentId,
+                runId: runId,
               ),
           createCompanionCallback:
               ({
@@ -4126,6 +6209,8 @@ class $$TasksTableTableManager
                 Value<int?> completedAt = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int> dayOrder = const Value.absent(),
+                Value<int?> experimentId = const Value.absent(),
+                Value<int?> runId = const Value.absent(),
               }) => TasksCompanion.insert(
                 id: id,
                 parentId: parentId,
@@ -4145,6 +6230,8 @@ class $$TasksTableTableManager
                 completedAt: completedAt,
                 archivedAt: archivedAt,
                 dayOrder: dayOrder,
+                experimentId: experimentId,
+                runId: runId,
               ),
           withReferenceMapper: (p0) =>
               p0.map((e) => (e.readTable<$TasksTable, TaskRow>(table), $$TasksTableReferences(db, table, e))).toList(),
@@ -4152,6 +6239,8 @@ class $$TasksTableTableManager
               ({
                 parentId = false,
                 projectId = false,
+                experimentId = false,
+                runId = false,
                 occurrencesRefs = false,
                 remindersRefs = false,
                 postponementsRefs = false,
@@ -4193,6 +6282,22 @@ class $$TasksTableTableManager
                             currentColumn: table.projectId,
                             referencedTable: $$TasksTableReferences._projectIdTable(db),
                             referencedColumn: $$TasksTableReferences._projectIdTable(db).id,
+                          ) as T;
+                        }
+                        if (experimentId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.experimentId,
+                            referencedTable: $$TasksTableReferences._experimentIdTable(db),
+                            referencedColumn: $$TasksTableReferences._experimentIdTable(db).id,
+                          ) as T;
+                        }
+                        if (runId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.runId,
+                            referencedTable: $$TasksTableReferences._runIdTable(db),
+                            referencedColumn: $$TasksTableReferences._runIdTable(db).id,
                           ) as T;
                         }
 
@@ -4250,6 +6355,8 @@ typedef $$TasksTableProcessedTableManager =
       PrefetchHooks Function({
         bool parentId,
         bool projectId,
+        bool experimentId,
+        bool runId,
         bool occurrencesRefs,
         bool remindersRefs,
         bool postponementsRefs,
@@ -5513,6 +7620,8 @@ class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
   $$ProjectsTableTableManager get projects => $$ProjectsTableTableManager(_db, _db.projects);
+  $$ExperimentsTableTableManager get experiments => $$ExperimentsTableTableManager(_db, _db.experiments);
+  $$ExperimentRunsTableTableManager get experimentRuns => $$ExperimentRunsTableTableManager(_db, _db.experimentRuns);
   $$TasksTableTableManager get tasks => $$TasksTableTableManager(_db, _db.tasks);
   $$OccurrencesTableTableManager get occurrences => $$OccurrencesTableTableManager(_db, _db.occurrences);
   $$RemindersTableTableManager get reminders => $$RemindersTableTableManager(_db, _db.reminders);

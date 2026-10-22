@@ -21,6 +21,7 @@ class TaskTile extends StatelessWidget {
     this.occurrence,
     this.missedCount = 0,
     this.showProject = true,
+    this.showExperiment = true,
     this.showParent = true,
     this.showDue = true,
     this.expanded,
@@ -36,6 +37,7 @@ class TaskTile extends StatelessWidget {
   final LocalDate today;
   final int missedCount;
   final bool showProject;
+  final bool showExperiment;
   final bool showParent;
   final bool showDue;
   final bool? expanded;
@@ -88,6 +90,14 @@ class TaskTile extends StatelessWidget {
           color: scheme.onSurfaceVariant,
           iconColor: Color(item.projectColor ?? scheme.primary.toARGB32()),
         ),
+      if (showExperiment && item.experimentName != null)
+        _Meta(
+          icon: Icons.science_outlined,
+          text: item.runName == null ? item.experimentName! : '${item.experimentName} › ${item.runName}',
+          color: scheme.tertiary,
+        ),
+      if (!showExperiment && item.runName != null)
+        _Meta(icon: Icons.play_circle_outline, text: item.runName!, color: scheme.tertiary),
       if (item.subtaskCount > 0)
         _Meta(icon: Icons.checklist, text: '${item.subtaskDone}/${item.subtaskCount}', color: scheme.outline),
       if (task.description.isNotEmpty) Icon(Icons.notes, size: 14, color: scheme.outline),
