@@ -118,7 +118,7 @@ void main() {
     await boot(tester);
     await tester.tap(find.text('Experiments').first);
     await settle(tester);
-    await tester.tap(find.text('New experiment'));
+    await tester.tap(find.byTooltip('New experiment'));
     await settle(tester);
     expect(find.text('Set the MLflow server in Settings to follow runs'), findsOneWidget);
     await tester.enterText(find.widgetWithText(TextField, 'Name'), 'LR sweep');
@@ -160,11 +160,11 @@ void main() {
     );
     await tester.pageBack();
     await settle(tester, rounds: 6);
-    expect(find.text('Runs to review'), findsOneWidget);
-    expect(find.text('To analyse'), findsOneWidget);
+    expect(find.text('RUNS TO REVIEW'), findsOneWidget);
+    expect(find.text('TO ANALYSE'), findsOneWidget);
     await tester.tap(find.byTooltip('Mark as reviewed'));
     await settle(tester, rounds: 6);
-    expect(find.text('Runs to review'), findsNothing);
+    expect(find.text('RUNS TO REVIEW'), findsNothing);
     await tester.runAsync(() => services.db.close());
   });
 
