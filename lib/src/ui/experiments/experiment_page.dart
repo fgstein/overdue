@@ -346,7 +346,9 @@ String _number(double v) {
   if (v == v.roundToDouble() && v.abs() < 1e9) return v.toInt().toString();
   final a = v.abs();
   if (a >= 1e5 || a < 1e-3) return v.toStringAsExponential(3);
-  return v.toStringAsPrecision(4);
+  // 4 significant digits, without trailing zeros (0.42, not 0.4200).
+  final p = v.toStringAsPrecision(4);
+  return p.contains('.') ? p.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '') : p;
 }
 
 class _RunTile extends StatelessWidget {

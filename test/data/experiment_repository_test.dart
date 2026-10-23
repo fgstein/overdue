@@ -74,6 +74,12 @@ void main() {
     expect(await env.experiments.getRuns(exp), hasLength(2), reason: 'runs missing from the answer are kept');
   });
 
+  test('linking an experiment whose runs are all over makes it "To analyse"', () async {
+    final exp = await env.experiments.create('Old sweep', mlflowExperimentId: '4');
+    await env.experiments.applyRemoteRuns(exp, [run('a', RunStatus.finished), run('b', RunStatus.killed)]);
+    expect((await env.experiments.getExperiment(exp))!.status, ExperimentStatus.analysing);
+  });
+
   test('a manual status is not overridden by an unchanged sync', () async {
     final exp = await env.experiments.create('E', mlflowExperimentId: '1');
     await env.experiments.applyRemoteRuns(exp, [run('a', RunStatus.finished)]);

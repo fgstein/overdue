@@ -9,6 +9,7 @@ import 'package:overdue/src/services/mlflow/mlflow_client.dart';
 class FakeMlflow {
   late HttpServer server;
   final requests = <(String path, Map<String, dynamic> body, String? auth)>[];
+  final contentLengths = <int>[];
   int status = 200;
   String? rawRuns;
 
@@ -17,6 +18,7 @@ class FakeMlflow {
   Future<void> start() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((req) async {
+      contentLengths.add(req.headers.contentLength);
       final body = jsonDecode(await utf8.decoder.bind(req).join()) as Map<String, dynamic>;
       requests.add((req.uri.path, body, req.headers.value(HttpHeaders.authorizationHeader)));
       req.response.statusCode = status;
@@ -93,6 +95,8 @@ void main() {
     expect(r.metrics, {'val_loss': 0.42});
     expect(r.params, {'lr': '3e-4'});
     expect(fake.requests.single.$2['experiment_ids'], ['12']);
+    // Recent MLflow servers read a chunked body as empty.
+    expect(fake.contentLengths.single, greaterThan(0));
   });
 
   test('NaN metrics (written as bare tokens by MLflow) are skipped', () async {

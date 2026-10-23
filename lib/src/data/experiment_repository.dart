@@ -76,10 +76,9 @@ class ExperimentRepository {
 
   /// Plain read (not `watchRuns(…).first`, which would wait for the
   /// transaction it is called from).
-  Future<List<ExperimentRun>> getRuns(int experimentId) async =>
-      (await (db.select(db.experimentRuns)..where((r) => r.experimentId.equals(experimentId))).get())
-          .map((r) => r.toDomain())
-          .toList();
+  Future<List<ExperimentRun>> getRuns(int experimentId) async => (await (db.select(
+    db.experimentRuns,
+  )..where((r) => r.experimentId.equals(experimentId))).get()).map((r) => r.toDomain()).toList();
 
   /// Every run, newest first (pickers).
   Future<List<ExperimentRun>> getAllRuns() async =>
@@ -205,7 +204,8 @@ class ExperimentRepository {
   ///
   /// The experiment follows its runs: a run starting moves an idea/planned
   /// experiment to "Running"; the last run ending moves a running one to
-  /// "To analyse". Returns the number of runs added or changed.
+  /// "To analyse" (also when a newly linked experiment's runs are all over).
+  /// Returns the number of runs added or changed.
   Future<int> applyRemoteRuns(int experimentId, List<RemoteRun> remote) => db.transaction(() async {
     final now = _now;
     final local = {for (final r in await getRuns(experimentId)) r.mlflowRunId: r};
@@ -235,7 +235,11 @@ class ExperimentRepository {
               ),
             );
         changed++;
-        started |= !r.status.isTerminal;
+        if (r.status.isTerminal) {
+          ended = true;
+        } else {
+          started = true;
+        }
         continue;
       }
       final same =
@@ -268,7 +272,11 @@ class ExperimentRepository {
     ExperimentStatus? next;
     if (started && (exp.status == ExperimentStatus.idea || exp.status == ExperimentStatus.planned)) {
       next = ExperimentStatus.running;
-    } else if (ended && !anyActive && exp.status == ExperimentStatus.running) {
+    } else if (ended &&
+        !anyActive &&
+        (exp.status == ExperimentStatus.running ||
+            exp.status == ExperimentStatus.idea ||
+            exp.status == ExperimentStatus.planned)) {
       next = ExperimentStatus.analysing;
     }
     await (db.update(db.experiments)..where((e) => e.id.equals(experimentId))).write(

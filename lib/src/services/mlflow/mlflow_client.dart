@@ -111,7 +111,10 @@ class MlflowClient {
         final basic = base64Encode(utf8.encode(Uri.decodeComponent(_base.userInfo)));
         req.headers.set(HttpHeaders.authorizationHeader, 'Basic $basic');
       }
-      req.write(jsonEncode(body));
+      // An explicit length: recent MLflow servers read a chunked body as empty.
+      final bytes = utf8.encode(jsonEncode(body));
+      req.contentLength = bytes.length;
+      req.add(bytes);
       final res = await req.close().timeout(timeout);
       final text = await res.transform(utf8.decoder).join().timeout(timeout);
       if (res.statusCode == 401 || res.statusCode == 403) {

@@ -1,9 +1,11 @@
 # Overdue
 
-A fast, fully offline task manager for **Windows, Ubuntu/Linux and Android**, built with Flutter.
+A fast, offline-first task manager for **Windows, Ubuntu/Linux and Android**, built with Flutter.
 
-- **100% offline.** No accounts, sync, cloud, analytics, telemetry, crash reporting or ads. The app makes no
-  network requests; the Android release manifest explicitly removes the `INTERNET` permission.
+- **Offline, except MLflow.** No accounts, sync, cloud, analytics, telemetry, crash reporting or ads. The only
+  network requests are read-only calls to the MLflow tracking server you set in *Settings → MLflow* (none when it is
+  empty); `lib/src/services/mlflow/mlflow_client.dart` is the only code allowed to use the network
+  (`test/privacy_test.dart` enforces it).
 - **Local data only.** One SQLite database in the per-user application data directory. No admin/root rights.
 - **One code base.** Domain logic, database, recurrence engine, agenda, search and almost all UI are shared;
   platform features sit behind a single interface.
@@ -22,7 +24,7 @@ A fast, fully offline task manager for **Windows, Ubuntu/Linux and Android**, bu
 | Reminders | Several per task: at a date/time, relative to the due time (e.g. 7 days / 2 hours before), or repeating on their own schedule (e.g. every day at 19:00, also without a due date). Notifications offer **Open**, **Complete** and **Snooze**. |
 | Agenda | *Today* (urgent, due today, ongoing, recurring), *Overdue*, and optional *Upcoming* days (none / tomorrow / 3 / 7 / 14 / 30). Complete, change status/priority, snooze and expand subtasks inline. Completed work stays visible (green) for the rest of the day and disappears the next day; remove it earlier with its ×. Unfinished work is never dropped: it moves to *Overdue*. Postpone a task with its ↷ button (tomorrow, next Monday, a date or the backlog) or by dragging it onto another day; it leaves a red struck-through trace ("Postponed to Thu") on the day it left until the end of the day, and in the history. |
 | Backlog | Open tasks without a date stay visible next to the agenda (side panel on wide windows, a section below the agenda on phones; toggle with the inbox button). Plan one by dragging it onto a day of the agenda or the mini calendar, or with its calendar button; drag a dated task back onto the backlog to remove its date. |
-| Experiments | A tab to follow the experiments you launch (e.g. MLflow): status (*Idea → Planned → Running → To analyse → Done*, or *Abandoned*), project, hypothesis/notes and conclusion (Markdown), and its **runs**. Add a run by pasting its MLflow URL or run id (with the experiment's MLflow page set, a bare id becomes a link); each run has a status (Scheduled, Running, Finished, Failed, Killed), notes, *Open in MLflow*, *Copy run id*. Finished/failed runs wait in *Runs to review* until you mark them reviewed; when the last run of a running experiment ends, it moves to *To analyse*. Link any task to an experiment or a specific run (*New task* from an experiment or run, *Link task*, or the *Experiment* chip in the task editor); linked tasks show “experiment › run” in the agenda and lists. Overdue never contacts MLflow: links open in your browser. |
+| Experiments | A tab to follow the experiments you launch on an **MLflow tracking server** (*Settings → MLflow*: server URL, `user:password@host` for basic auth or a bearer token, automatic refresh, connection test). Each experiment has a status (*Idea → Planned → Running → To analyse → Done*, or *Abandoned*), a project, hypothesis/notes and conclusion (Markdown), and is linked to an MLflow experiment picked from the server's list. Its **runs are read from the server** (on open, with ↻, and every few minutes while the main window is open): name, status, start time, duration, metrics and params; notes and the *reviewed* mark are yours. Finished/failed/killed runs wait in *Runs to review* until you mark them reviewed; a run starting moves a planned experiment to *Running*, the last run ending moves it to *To analyse*. Link any task to an experiment or a specific run (*New task* from an experiment or run, *Link task*, or the *Experiment* chip in the task editor); linked tasks show “experiment › run” in the agenda and lists. *Open in MLflow* opens the run in your browser. |
 | Search | Instant full-text search (SQLite FTS5, prefix matching) across titles, descriptions and project names, combinable with project / status / priority / type / due date / completion filters and sorting. |
 | Desktop overlay | Compact, movable, resizable, optionally always-on-top agenda summary with the mini calendar; click the circle to mark a task done (green check), type a title in the field at the bottom and press Enter to add a task for today, click an item to open it in the main app, right-click for Complete / Reschedule / Priority (right-click *OVERDUE* to move them all), drag a line onto a day square to move it. Shown by default when Overdue starts (its × hides it until the next start); the overlay button at the top right of the main window brings it back on top. Remembers position/size, opacity and visibility; can start at login. |
 | Notification area (Windows) | An Overdue icon at the bottom right of the taskbar: *Open Overdue*, *Show the overlay*, *Overlay always on top* (toggle) and *Move windows to the main screen* (also in Settings), which brings the main window and the overlay back from a screen that is no longer connected. The overlay also moves back by itself when its saved position is off-screen, and both windows when a screen is disconnected. |
@@ -46,7 +48,7 @@ Requires Flutter 3.47+ (Dart 3.13+).
 
 ```sh
 flutter pub get
-flutter test                      # 154 tests: domain, database, reminders, migrations, UI, privacy
+flutter test                      # 158 tests: domain, database, reminders, migrations, UI, privacy
 flutter build linux --release     # Ubuntu: needs clang, cmake, ninja, libgtk-3-dev
 flutter build windows --release   # on Windows with Visual Studio (Desktop C++)
 flutter build apk --release       # Android SDK + NDK

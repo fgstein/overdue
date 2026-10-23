@@ -512,10 +512,7 @@ class _ExperimentChip extends StatelessWidget {
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'open', child: Text('Open the experiment')),
               if (url != null)
-                PopupMenuItem(
-                  value: 'mlflow',
-                  child: Text(run != null ? 'Open the run in MLflow' : 'Open in MLflow'),
-                ),
+                PopupMenuItem(value: 'mlflow', child: Text(run != null ? 'Open the run in MLflow' : 'Open in MLflow')),
               const PopupMenuItem(value: 'change', child: Text('Change…')),
               const PopupMenuItem(value: 'unlink', child: Text('Unlink')),
             ],
