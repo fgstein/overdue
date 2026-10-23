@@ -15,6 +15,7 @@ import '../data/task_repository.dart';
 import '../platform/platform_integration.dart';
 import '../services/activity_export.dart';
 import '../services/backup_service.dart';
+import '../services/mlflow/mlflow_sync.dart';
 import '../services/reminder_host.dart';
 
 /// Composition root: owns every long-lived service of a process.
@@ -42,6 +43,7 @@ class AppServices {
       clock: clock,
     );
     agenda = AgendaService(tasks);
+    mlflow = MlflowSync(experiments: experiments, settings: settings);
     tasks.lookaheadDays = settings.upcomingDays > 14 ? settings.upcomingDays : 14;
     reminders = ReminderHost(
       db: db,
@@ -79,6 +81,7 @@ class AppServices {
   /// One-off message to show after start-up (e.g. result of a restore).
   String? startupMessage;
   Timer? _backupTimer;
+  Timer? _mlflowStart;
 
   final AppDatabase db;
   final AppSettings settings;
@@ -88,6 +91,7 @@ class AppServices {
   final ProjectRepository projects;
   final ExperimentRepository experiments;
   late final AgendaService agenda;
+  late final MlflowSync mlflow;
   late final ReminderHost reminders;
 
   final _openRequests = StreamController<int>.broadcast();
@@ -147,6 +151,8 @@ class AppServices {
       // Next to the backups folder by default (e.g. Documents/Overdue activity).
       exports.defaultFolder = Directory(p.join(p.dirname(backups.defaultFolder.path), 'Overdue activity'));
       _backupTimer = Timer(const Duration(seconds: 5), () => unawaited(_dailyBackup()));
+      // Only the main window talks to the MLflow server.
+      _mlflowStart = Timer(const Duration(seconds: 2), mlflow.start);
     }
   }
 
@@ -186,6 +192,8 @@ class AppServices {
     _midnight?.cancel();
     _reminderStart?.cancel();
     _backupTimer?.cancel();
+    _mlflowStart?.cancel();
+    mlflow.dispose();
     await reminders.dispose();
     await platform.dispose();
     await db.close();

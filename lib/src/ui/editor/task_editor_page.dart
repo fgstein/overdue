@@ -494,6 +494,7 @@ class _ExperimentChip extends StatelessWidget {
         builder: (context, runs) {
           final run = runs?.where((r) => r.id == task.runId).firstOrNull;
           final label = e == null ? 'Experiment' : (run == null ? e.name : '${e.name} › ${run.label}');
+          final url = e == null ? null : (run == null ? s.mlflow.experimentUrl(e) : s.mlflow.runUrl(e, run));
           return PopupMenuButton<String>(
             tooltip: 'Experiment',
             onSelected: (v) async {
@@ -501,7 +502,7 @@ class _ExperimentChip extends StatelessWidget {
                 case 'open':
                   await ExperimentPage.open(context, expId);
                 case 'mlflow':
-                  await ExperimentUi.openUrl(context, run?.url ?? e?.mlflowUrl);
+                  await ExperimentUi.openUrl(context, url);
                 case 'change':
                   await pick();
                 case 'unlink':
@@ -510,10 +511,10 @@ class _ExperimentChip extends StatelessWidget {
             },
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'open', child: Text('Open the experiment')),
-              if ((run?.url ?? e?.mlflowUrl) != null)
+              if (url != null)
                 PopupMenuItem(
                   value: 'mlflow',
-                  child: Text(run?.url != null ? 'Open the run in MLflow' : 'Open in MLflow'),
+                  child: Text(run != null ? 'Open the run in MLflow' : 'Open in MLflow'),
                 ),
               const PopupMenuItem(value: 'change', child: Text('Change…')),
               const PopupMenuItem(value: 'unlink', child: Text('Unlink')),

@@ -6,6 +6,7 @@ import '../../app/app_services.dart';
 import '../../domain/experiments.dart';
 import '../../domain/models.dart';
 import '../../domain/task_query.dart';
+import '../../services/mlflow/mlflow_client.dart';
 import '../theme.dart';
 import '../widgets/live_query.dart';
 
@@ -62,189 +63,235 @@ abstract final class ExperimentUi {
     }
   }
 
-  /// Creates or edits an experiment's name, MLflow page and project.
-  /// Returns the id of the created experiment.
+  /// Creates or edits an experiment: name, linked MLflow experiment (chosen
+  /// from the server) and project. Returns the id of the created experiment.
   static Future<int?> editExperiment(BuildContext context, {Experiment? experiment, int? projectId}) async {
     final s = AppScope.of(context);
     final name = TextEditingController(text: experiment?.name ?? '');
-    final url = TextEditingController(text: experiment?.mlflowUrl ?? '');
     var project = experiment?.projectId ?? projectId;
     var status = experiment?.status ?? ExperimentStatus.planned;
+    RemoteExperiment? remote = experiment?.mlflowExperimentId == null
+        ? null
+        : RemoteExperiment(id: experiment!.mlflowExperimentId!, name: '');
     final projects = await s.projects.getAll();
     if (!context.mounted) return null;
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => StatefulBuilder(
-        builder: (c, set) => AlertDialog(
-          title: Text(experiment == null ? 'New experiment' : 'Edit experiment'),
-          content: SizedBox(
-            width: 460,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: name,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                  onSubmitted: (_) => Navigator.pop(c, true),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: url,
-                  decoration: const InputDecoration(
-                    labelText: 'MLflow experiment URL (optional)',
-                    hintText: 'http://localhost:5000/#/experiments/12',
-                    helperText: 'Lets you paste bare run ids later; opened in your browser',
-                  ),
-                  onChanged: (_) => set(() {}),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<int>(
-                  initialValue: project ?? -1,
-                  decoration: const InputDecoration(labelText: 'Project'),
-                  items: [
-                    const DropdownMenuItem(value: -1, child: Text('No project')),
-                    for (final p in projects) DropdownMenuItem(value: p.id, child: Text(p.name)),
-                  ],
-                  onChanged: (v) => project = v == -1 ? null : v,
-                ),
-                if (experiment == null) ...[
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<ExperimentStatus>(
-                    initialValue: status,
-                    decoration: const InputDecoration(labelText: 'Status'),
-                    items: [
-                      for (final v in ExperimentStatus.values.where((v) => v.isActive))
-                        DropdownMenuItem(value: v, child: Text(v.label)),
-                    ],
-                    onChanged: (v) => status = v ?? status,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
-          ],
-        ),
-      ),
-    );
-    // The controllers are not disposed: the dialog may still be animating
-    // out and rebuilding with them. They hold no resources.
-    final n = name.text.trim(), u = url.text.trim();
-    if (ok != true || n.isEmpty) return null;
-    if (experiment == null) {
-      return s.experiments.create(n, projectId: project, status: status, mlflowUrl: u);
-    }
-    await s.experiments.update(
-      experiment.id,
-      name: n,
-      setProject: true,
-      projectId: project,
-      setUrl: true,
-      mlflowUrl: u,
-    );
-    return experiment.id;
-  }
-
-  /// Adds a run to [experiment] or edits [run]. The first field takes an
-  /// MLflow run URL or a bare run id.
-  static Future<void> editRun(BuildContext context, Experiment experiment, {ExperimentRun? run}) async {
-    final s = AppScope.of(context);
-    final link = TextEditingController(text: run?.url ?? run?.mlflowRunId ?? '');
-    final name = TextEditingController(text: run?.name ?? '');
-    final notes = TextEditingController(text: run?.notes ?? '');
-    var status = run?.status ?? RunStatus.running;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
         builder: (c, set) {
-          final parsed = MlflowLink.parse(link.text);
-          final invalid = link.text.trim().isNotEmpty && parsed == null;
+          final scheme = Theme.of(c).colorScheme;
           return AlertDialog(
-            title: Text(run == null ? 'Add a run to ${experiment.name}' : 'Edit run'),
+            title: Text(experiment == null ? 'New experiment' : 'Edit experiment'),
             content: SizedBox(
               width: 460,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: link,
-                      autofocus: run == null,
-                      decoration: InputDecoration(
-                        labelText: 'MLflow run URL or run id (optional)',
-                        hintText: 'Paste from the MLflow UI',
-                        errorText: invalid ? 'Not an MLflow URL or a 32-character run id' : null,
-                        helperText: parsed?.runId == null ? null : 'Run id ${parsed!.runId}',
-                      ),
-                      onChanged: (_) => set(() {}),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.science_outlined),
+                    title: Text(
+                      remote == null
+                          ? 'No MLflow experiment'
+                          : (remote!.name.isEmpty ? 'MLflow experiment ${remote!.id}' : remote!.name),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: name,
-                      autofocus: run != null,
-                      decoration: const InputDecoration(labelText: 'Name', hintText: 'e.g. lr=3e-4, seed 2'),
+                    subtitle: Text(
+                      s.mlflow.configured
+                          ? (remote == null ? 'Its runs are read from the MLflow server' : 'id ${remote!.id}')
+                          : 'Set the MLflow server in Settings to follow runs',
+                      style: TextStyle(color: scheme.outline),
                     ),
-                    if (run == null) ...[
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<RunStatus>(
-                        initialValue: status,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        items: [for (final v in RunStatus.values) DropdownMenuItem(value: v, child: Text(v.label))],
-                        onChanged: (v) => status = v ?? status,
-                      ),
+                    trailing: Wrap(
+                      children: [
+                        if (remote != null)
+                          IconButton(
+                            tooltip: 'Unlink from MLflow',
+                            icon: const Icon(Icons.link_off),
+                            onPressed: () => set(() => remote = null),
+                          ),
+                        TextButton(
+                          onPressed: !s.mlflow.configured
+                              ? null
+                              : () async {
+                                  final picked = await pickRemoteExperiment(c, current: remote?.id);
+                                  if (picked == null) return;
+                                  set(() {
+                                    remote = picked;
+                                    if (name.text.trim().isEmpty) name.text = picked.name;
+                                  });
+                                },
+                          child: const Text('Choose…'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextField(
+                    controller: name,
+                    autofocus: experiment != null,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                    onSubmitted: (_) => Navigator.pop(c, true),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    initialValue: project ?? -1,
+                    decoration: const InputDecoration(labelText: 'Project'),
+                    items: [
+                      const DropdownMenuItem(value: -1, child: Text('No project')),
+                      for (final p in projects) DropdownMenuItem(value: p.id, child: Text(p.name)),
                     ],
+                    onChanged: (v) => project = v == -1 ? null : v,
+                  ),
+                  if (experiment == null) ...[
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: notes,
-                      minLines: 3,
-                      maxLines: 8,
-                      decoration: const InputDecoration(
-                        labelText: 'Notes (Markdown)',
-                        hintText: 'Parameters, observations, results…',
-                        border: OutlineInputBorder(),
-                      ),
+                    DropdownButtonFormField<ExperimentStatus>(
+                      initialValue: status,
+                      decoration: const InputDecoration(labelText: 'Status'),
+                      items: [
+                        for (final v in ExperimentStatus.values.where((v) => v.isActive))
+                          DropdownMenuItem(value: v, child: Text(v.label)),
+                      ],
+                      onChanged: (v) => status = v ?? status,
                     ),
                   ],
-                ),
+                  if (experiment?.mlflowExperimentId != null && remote?.id != experiment!.mlflowExperimentId) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'The runs read from the previous MLflow experiment will be removed '
+                      '(their notes and tasks links too; the tasks are kept).',
+                      style: TextStyle(color: scheme.error),
+                    ),
+                  ],
+                ],
               ),
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-              FilledButton(onPressed: invalid ? null : () => Navigator.pop(c, true), child: const Text('Save')),
+              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
             ],
           );
         },
       ),
     );
-    // Controllers not disposed: see [editExperiment].
-    final parsed = MlflowLink.parse(link.text);
-    final isUrl = parsed?.baseUrl != null;
-    final values = (name: name.text, notes: notes.text, pasted: link.text.trim());
-    if (ok != true) return;
-    final url = isUrl ? values.pasted : null;
-    if (run == null) {
-      await s.experiments.addRun(
-        experiment.id,
-        name: values.name,
-        mlflowRunId: parsed?.runId,
-        url: url,
-        status: status,
-        notes: values.notes,
-      );
+    // The controller is not disposed: the dialog may still be animating out
+    // and rebuilding with it. It holds no resources.
+    final n = name.text.trim();
+    if (ok != true || n.isEmpty) return null;
+    final int id;
+    if (experiment == null) {
+      id = await s.experiments.create(n, projectId: project, status: status, mlflowExperimentId: remote?.id);
     } else {
-      await s.experiments.updateRun(
-        run.id,
-        name: values.name,
-        setRunId: true,
-        mlflowRunId: parsed?.runId,
-        setUrl: true,
-        url: url ?? (parsed?.runId == null ? null : MlflowLink.runUrl(experiment.mlflowUrl, parsed!.runId!)),
-        notes: values.notes,
+      id = experiment.id;
+      await s.experiments.update(
+        id,
+        name: n,
+        setProject: true,
+        projectId: project,
+        setMlflow: true,
+        mlflowExperimentId: remote?.id,
       );
     }
+    if (remote != null && context.mounted) await syncNow(context, id);
+    return id;
+  }
+
+  /// Reads the runs of an experiment now; reports errors in a snackbar.
+  static Future<void> syncNow(BuildContext context, int experimentId) async {
+    try {
+      await AppScope.of(context).mlflow.syncExperiment(experimentId);
+    } on MlflowException catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  /// Lists the server's experiments to link one.
+  static Future<RemoteExperiment?> pickRemoteExperiment(BuildContext context, {String? current}) {
+    final future = AppScope.of(context).mlflow.listExperiments();
+    var filter = '';
+    return showDialog<RemoteExperiment>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: const Text('MLflow experiment'),
+          content: SizedBox(
+            width: 480,
+            height: 420,
+            child: FutureBuilder<List<RemoteExperiment>>(
+              future: future,
+              builder: (c, snap) {
+                if (snap.hasError) {
+                  return Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text('${snap.error}', style: TextStyle(color: Theme.of(c).colorScheme.error)),
+                  );
+                }
+                if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                final f = filter.toLowerCase();
+                final shown = snap.data!
+                    .where((e) => f.isEmpty || e.name.toLowerCase().contains(f) || e.id == f)
+                    .toList();
+                return Column(
+                  children: [
+                    TextField(
+                      autofocus: true,
+                      decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search'),
+                      onChanged: (v) => set(() => filter = v),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          for (final e in shown)
+                            ListTile(
+                              dense: true,
+                              title: Text(e.name),
+                              subtitle: Text('id ${e.id}'),
+                              selected: e.id == current,
+                              onTap: () => Navigator.pop(c, e),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel'))],
+        ),
+      ),
+    );
+  }
+
+  /// Edits a run's local notes (everything else comes from MLflow).
+  static Future<void> editRunNotes(BuildContext context, ExperimentRun run) async {
+    final s = AppScope.of(context);
+    final notes = TextEditingController(text: run.notes);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Notes · ${run.label}'),
+        content: SizedBox(
+          width: 460,
+          child: TextField(
+            controller: notes,
+            autofocus: true,
+            minLines: 4,
+            maxLines: 12,
+            decoration: const InputDecoration(
+              hintText: 'Observations, what to try next… (Markdown)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    // Not disposed: see [editExperiment].
+    if (ok == true) await s.experiments.setRunNotes(run.id, notes.text);
   }
 
   static Future<bool> confirm(BuildContext context, String title, String message, {String action = 'Delete'}) async =>
@@ -307,7 +354,7 @@ abstract final class ExperimentUi {
                             contentPadding: const EdgeInsets.only(left: 56, right: 16),
                             leading: Icon(runIcon(r.status), size: 18, color: runColor(r.status, scheme)),
                             title: Text(r.label),
-                            subtitle: r.mlflowRunId == null ? null : Text(MlflowLink.shortId(r.mlflowRunId!)),
+                            subtitle: Text(MlflowServer.shortId(r.mlflowRunId)),
                             onTap: () => Navigator.pop(c, (experimentId: e.id, runId: r.id)),
                           ),
                       ],

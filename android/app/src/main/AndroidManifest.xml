@@ -1,9 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Overdue is 100% offline: make sure no dependency can add network access
-         to release builds. (Debug builds keep it only for Flutter tooling.) -->
-    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <!-- Network access is used only to read experiments and runs from the
+         MLflow server set in Settings (see lib/src/services/mlflow). -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Local reminders -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -17,7 +17,8 @@
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="false">
+        android:fullBackupContent="false"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -64,7 +64,7 @@ class TaskRepository {
   );
 
   static String? _runLabel(String? name, String? mlflowId) =>
-      name != null && name.isNotEmpty ? name : (mlflowId == null ? null : MlflowLink.shortId(mlflowId));
+      name != null && name.isNotEmpty ? name : (mlflowId == null ? null : MlflowServer.shortId(mlflowId));
 
   /// Emits whenever task-related data changes (used to trigger reconciliation
   /// of notifications and widget refreshes).

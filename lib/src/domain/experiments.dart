@@ -1,9 +1,12 @@
-/// Experiments (e.g. ML experiments tracked in MLflow) and their runs.
+/// Experiments and their runs, mirrored from an MLflow tracking server.
 ///
-/// Overdue never talks to an MLflow server: an experiment or run only keeps a
-/// reference (ids and the URL of its MLflow page, opened in the browser).
-/// The integer [code] values are persisted and must never be renumbered.
+/// An experiment is linked to an MLflow experiment; its runs (name, status,
+/// times, metrics, params) are read from the server, notes and the
+/// "reviewed" mark stay local. The integer [code] values are persisted and
+/// must never be renumbered.
 library;
+
+import 'dart:convert';
 
 enum ExperimentStatus {
   idea(0, 'Idea'),
@@ -49,6 +52,10 @@ enum RunStatus {
 
   static RunStatus fromCode(int code) => values.firstWhere((s) => s.code == code, orElse: () => scheduled);
 
+  /// From MLflow's `RunStatus` name (`RUNNING`, `FINISHED`…).
+  static RunStatus fromMlflow(String? name) =>
+      values.firstWhere((s) => s.name.toUpperCase() == name, orElse: () => scheduled);
+
   static const List<int> terminalCodes = [2, 3, 4];
 }
 
@@ -60,7 +67,8 @@ class Experiment {
     this.status = ExperimentStatus.idea,
     this.description = '',
     this.conclusion = '',
-    this.mlflowUrl,
+    this.mlflowExperimentId,
+    this.syncedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -75,22 +83,26 @@ class Experiment {
   /// Markdown: what was learned.
   final String conclusion;
 
-  /// Page of the experiment in the MLflow UI.
-  final String? mlflowUrl;
+  /// MLflow experiment whose runs are synchronised (null = not linked yet).
+  final String? mlflowExperimentId;
+
+  /// Last successful synchronisation.
+  final DateTime? syncedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
-
-  MlflowLink? get link => MlflowLink.parse(mlflowUrl);
 }
 
 class ExperimentRun {
   const ExperimentRun({
     required this.id,
     required this.experimentId,
-    required this.name,
-    this.mlflowRunId,
-    this.url,
+    required this.mlflowRunId,
+    this.name = '',
     this.status = RunStatus.scheduled,
+    this.startedAt,
+    this.endedAt,
+    this.metrics = const {},
+    this.params = const {},
     this.notes = '',
     this.reviewedAt,
     required this.createdAt,
@@ -98,16 +110,19 @@ class ExperimentRun {
   });
   final int id;
   final int experimentId;
-  final String name;
 
   /// MLflow run id (32 hex characters).
-  final String? mlflowRunId;
-
-  /// Page of the run in the MLflow UI.
-  final String? url;
+  final String mlflowRunId;
+  final String name;
   final RunStatus status;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
 
-  /// Markdown: parameters, observations, results.
+  /// Latest value of each metric, and the run's params (from MLflow).
+  final Map<String, double> metrics;
+  final Map<String, String> params;
+
+  /// Markdown, local: observations, what to do next.
   final String notes;
 
   /// When the results were reviewed; null = not reviewed yet.
@@ -121,7 +136,50 @@ class ExperimentRun {
   bool get toReview => status.isTerminal && !reviewed;
 
   /// "name" or the short run id when the run has no name.
-  String get label => name.isNotEmpty ? name : (mlflowRunId == null ? 'Run $id' : MlflowLink.shortId(mlflowRunId!));
+  String get label => name.isNotEmpty ? name : MlflowServer.shortId(mlflowRunId);
+
+  static Map<String, double> decodeMetrics(String json) => _decode(json, (v) => (v as num).toDouble());
+  static Map<String, String> decodeParams(String json) => _decode(json, (v) => '$v');
+
+  static Map<String, T> _decode<T>(String json, T Function(Object v) f) {
+    try {
+      final m = jsonDecode(json);
+      if (m is! Map) return const {};
+      return {
+        for (final e in m.entries)
+          if (e.value != null) '${e.key}': f(e.value as Object),
+      };
+    } catch (_) {
+      return const {}; // Corrupt JSON: show nothing rather than crash.
+    }
+  }
+}
+
+/// An experiment as listed by the MLflow server.
+class RemoteExperiment {
+  const RemoteExperiment({required this.id, required this.name});
+  final String id;
+  final String name;
+}
+
+/// A run as returned by the MLflow server.
+class RemoteRun {
+  const RemoteRun({
+    required this.runId,
+    this.name = '',
+    this.status = RunStatus.scheduled,
+    this.startedAt,
+    this.endedAt,
+    this.metrics = const {},
+    this.params = const {},
+  });
+  final String runId;
+  final String name;
+  final RunStatus status;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+  final Map<String, double> metrics;
+  final Map<String, String> params;
 }
 
 /// Row of the Experiments tab.
@@ -146,54 +204,43 @@ class ExperimentSummary {
 
 /// A run with its experiment's name (e.g. in "Runs to review").
 class RunWithExperiment {
-  const RunWithExperiment(this.run, this.experimentName);
+  const RunWithExperiment(this.run, this.experimentName, {this.mlflowExperimentId});
   final ExperimentRun run;
   final String experimentName;
+  final String? mlflowExperimentId;
 }
 
-/// What can be extracted from an MLflow URL (or a bare run id), offline.
-///
-/// Understands the MLflow UI (`http://host:5000/#/experiments/12/runs/<id>`,
-/// with any trailing tab such as `/model-metrics`) and Databricks
-/// (`https://…/ml/experiments/12/runs/<id>`, `…#mlflow/experiments/12/runs/<id>`).
-class MlflowLink {
-  const MlflowLink({this.baseUrl, this.experimentId, this.runId});
+/// URLs of an MLflow tracking server's UI.
+abstract final class MlflowServer {
+  /// Server root from what the user typed or pasted: adds `http://` when no
+  /// scheme is given and drops any UI path (`/#/experiments/12/…`).
+  /// Null when it is not an http(s) URL.
+  static String? normalize(String? input) {
+    var s = input?.trim() ?? '';
+    if (s.isEmpty) return null;
+    if (!s.contains('://')) s = 'http://$s';
+    final uri = Uri.tryParse(s);
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) return null;
+    final cut = s.indexOf(RegExp(r'/?#|/ml/experiments(/|$)|/experiments(/|$)|\?'), uri.scheme.length + 3);
+    var base = cut < 0 ? s : s.substring(0, cut);
+    while (base.endsWith('/')) {
+      base = base.substring(0, base.length - 1);
+    }
+    return base;
+  }
 
-  /// Tracking server UI root, e.g. `http://localhost:5000`.
-  final String? baseUrl;
-  final String? experimentId;
-  final String? runId;
+  static String experimentUrl(String server, String experimentId) => '${_ui(server)}/#/experiments/$experimentId';
 
-  static final _runId = RegExp(r'^[0-9a-f]{32}$');
-  static final _path = RegExp(r'experiments/([^/?#&\s]+)(?:/runs/([0-9A-Za-z_-]+))?');
+  static String runUrl(String server, String experimentId, String runId) =>
+      '${_ui(server)}/#/experiments/$experimentId/runs/$runId';
 
-  static bool isRunId(String s) => _runId.hasMatch(s);
+  /// Credentials given as `http://user:password@host` are for the API only;
+  /// the browser asks for them itself.
+  static String _ui(String server) {
+    final uri = Uri.parse(server);
+    return uri.userInfo.isEmpty ? server : uri.replace(userInfo: '').toString();
+  }
 
   /// First 8 characters of a run id, as MLflow shows them.
   static String shortId(String runId) => runId.length > 8 ? runId.substring(0, 8) : runId;
-
-  /// Null when [input] is neither an MLflow URL nor a run id.
-  static MlflowLink? parse(String? input) {
-    final s = input?.trim() ?? '';
-    if (s.isEmpty) return null;
-    if (isRunId(s.toLowerCase())) return MlflowLink(runId: s.toLowerCase());
-    final uri = Uri.tryParse(s);
-    if (uri == null || !uri.hasScheme || !uri.scheme.startsWith('http') || uri.host.isEmpty) return null;
-    final m = _path.firstMatch(s);
-    final cut = s.indexOf(RegExp(r'/?#|/ml/experiments/|/experiments/'));
-    final base = cut < 0 ? '${uri.origin}${uri.path}' : s.substring(0, cut);
-    return MlflowLink(
-      baseUrl: base.endsWith('/') ? base.substring(0, base.length - 1) : base,
-      experimentId: m?.group(1),
-      runId: m?.group(2),
-    );
-  }
-
-  /// URL of [runId]'s page in the experiment whose page is [experimentUrl]
-  /// (MLflow UI layout), or null when it cannot be derived.
-  static String? runUrl(String? experimentUrl, String runId) {
-    final e = parse(experimentUrl);
-    if (e?.baseUrl == null || e?.experimentId == null) return null;
-    return '${e!.baseUrl}/#/experiments/${e.experimentId}/runs/$runId';
-  }
 }

@@ -114,33 +114,31 @@ void main() {
     await tester.runAsync(() => services.db.close());
   });
 
-  testWidgets('experiments tab: create an experiment, add a run, review it, link a task', (tester) async {
+  testWidgets('experiments tab: create an experiment, see its MLflow runs, review one, add a task', (tester) async {
     await boot(tester);
     await tester.tap(find.text('Experiments').first);
     await settle(tester);
     await tester.tap(find.text('New experiment'));
     await settle(tester);
+    expect(find.text('Set the MLflow server in Settings to follow runs'), findsOneWidget);
     await tester.enterText(find.widgetWithText(TextField, 'Name'), 'LR sweep');
-    await tester.enterText(
-      find.widgetWithText(TextField, 'MLflow experiment URL (optional)'),
-      'http://localhost:5000/#/experiments/12',
-    );
     await tester.tap(find.text('Save'));
     await settle(tester, rounds: 6);
     expect(find.text('LR sweep'), findsWidgets, reason: 'the experiment page is open');
 
-    await tester.tap(find.text('Add run'));
+    // What a synchronisation with the server brings in.
+    const runId = '0a1b2c3d4e5f60718293a4b5c6d7e8f9';
+    await tester.runAsync(() => services.experiments.update(1, setMlflow: true, mlflowExperimentId: '12'));
     await settle(tester);
-    await tester.enterText(
-      find.widgetWithText(TextField, 'MLflow run URL or run id (optional)'),
-      '0a1b2c3d4e5f60718293a4b5c6d7e8f9',
+    await tester.runAsync(
+      () => services.experiments.applyRemoteRuns(1, [
+        const RemoteRun(runId: runId, name: 'lr=3e-4', status: RunStatus.running, metrics: {'val_loss': 0.4213}),
+      ]),
     );
-    await tester.enterText(find.widgetWithText(TextField, 'Name'), 'lr=3e-4');
-    await tester.tap(find.text('Save'));
     await settle(tester, rounds: 6);
     expect(find.text('lr=3e-4'), findsOneWidget);
+    expect(find.textContaining('val_loss 0.4213', findRichText: true), findsOneWidget);
     final run = (await tester.runAsync(() => services.experiments.getAllRuns()))!.single;
-    expect(run.url, 'http://localhost:5000/#/experiments/12/runs/0a1b2c3d4e5f60718293a4b5c6d7e8f9');
 
     // New task for the run, from its row.
     await tester.tap(find.byTooltip('New task for this run'));
@@ -154,11 +152,16 @@ void main() {
     expect(task.runId, run.id);
     expect(find.text('Compare val loss'), findsOneWidget);
 
-    // The run finishes: it shows up as "to review" in the tab.
-    await tester.runAsync(() => services.experiments.setRunStatus(run.id, RunStatus.finished));
+    // The run finishes on the server: it shows up as "to review" in the tab.
+    await tester.runAsync(
+      () => services.experiments.applyRemoteRuns(1, [
+        const RemoteRun(runId: runId, name: 'lr=3e-4', status: RunStatus.finished),
+      ]),
+    );
     await tester.pageBack();
     await settle(tester, rounds: 6);
     expect(find.text('Runs to review'), findsOneWidget);
+    expect(find.text('To analyse'), findsOneWidget);
     await tester.tap(find.byTooltip('Mark as reviewed'));
     await settle(tester, rounds: 6);
     expect(find.text('Runs to review'), findsNothing);

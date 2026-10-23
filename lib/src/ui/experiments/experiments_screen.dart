@@ -46,6 +46,27 @@ class _ExperimentsScreenState extends State<ExperimentsScreen> {
       appBar: AppBar(
         title: const Text('Experiments'),
         actions: [
+          ListenableBuilder(
+            listenable: s.mlflow,
+            builder: (context, _) {
+              if (!s.mlflow.configured) return const SizedBox.shrink();
+              if (s.mlflow.busy) {
+                return const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                );
+              }
+              final error = s.mlflow.lastError;
+              return IconButton(
+                tooltip: error == null ? 'Refresh runs from MLflow' : 'MLflow: $error',
+                icon: Icon(
+                  error == null ? Icons.refresh : Icons.sync_problem,
+                  color: error == null ? null : Theme.of(context).colorScheme.error,
+                ),
+                onPressed: s.mlflow.syncAll,
+              );
+            },
+          ),
           FilterChip(label: const Text('Show done'), selected: _showAll, onSelected: (_) => _toggleShowAll()),
           const SizedBox(width: 4),
           const OverlayButton(),
@@ -121,7 +142,8 @@ class _EmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Overdue does not connect to MLflow: paste run URLs or ids, they open in your browser.',
+                'Set your MLflow server in Settings, then link each experiment to an MLflow experiment: '
+                'its runs, statuses and metrics are read from the server.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.outline),
               ),
@@ -167,6 +189,8 @@ class _ReviewRow extends StatelessWidget {
     final s = AppScope.of(context);
     final scheme = Theme.of(context).colorScheme;
     final run = item.run;
+    final server = s.mlflow.server, expId = item.mlflowExperimentId;
+    final url = server == null || expId == null ? null : MlflowServer.runUrl(server, expId, run.mlflowRunId);
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       elevation: 0,
@@ -179,11 +203,11 @@ class _ReviewRow extends StatelessWidget {
         onTap: () => ExperimentPage.open(context, run.experimentId),
         trailing: Wrap(
           children: [
-            if (run.url != null)
+            if (url != null)
               IconButton(
                 tooltip: 'Open in MLflow',
                 icon: const Icon(Icons.open_in_new, size: 20),
-                onPressed: () => ExperimentUi.openUrl(context, run.url),
+                onPressed: () => ExperimentUi.openUrl(context, url),
               ),
             IconButton(
               tooltip: 'New task for this run',
@@ -282,11 +306,11 @@ class _ExperimentCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (e.mlflowUrl != null)
+              if (AppScope.of(context).mlflow.experimentUrl(e) case final url?)
                 IconButton(
                   tooltip: 'Open in MLflow',
                   icon: const Icon(Icons.open_in_new, size: 20),
-                  onPressed: () => ExperimentUi.openUrl(context, e.mlflowUrl),
+                  onPressed: () => ExperimentUi.openUrl(context, url),
                 ),
               IconButton(
                 tooltip: 'New task for this experiment',

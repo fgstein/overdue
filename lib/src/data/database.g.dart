@@ -400,13 +400,22 @@ class $ExperimentsTable extends Experiments with TableInfo<$ExperimentsTable, Ex
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
-  static const VerificationMeta _mlflowUrlMeta = const VerificationMeta('mlflowUrl');
+  static const VerificationMeta _mlflowExperimentIdMeta = const VerificationMeta('mlflowExperimentId');
   @override
-  late final GeneratedColumn<String> mlflowUrl = GeneratedColumn<String>(
-    'mlflow_url',
+  late final GeneratedColumn<String> mlflowExperimentId = GeneratedColumn<String>(
+    'mlflow_experiment_id',
     aliasedName,
     true,
     type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncedAtMeta = const VerificationMeta('syncedAt');
+  @override
+  late final GeneratedColumn<int> syncedAt = GeneratedColumn<int>(
+    'synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
@@ -435,7 +444,8 @@ class $ExperimentsTable extends Experiments with TableInfo<$ExperimentsTable, Ex
     status,
     description,
     conclusion,
-    mlflowUrl,
+    mlflowExperimentId,
+    syncedAt,
     createdAt,
     updatedAt,
   ];
@@ -468,8 +478,14 @@ class $ExperimentsTable extends Experiments with TableInfo<$ExperimentsTable, Ex
     if (data.containsKey('conclusion')) {
       context.handle(_conclusionMeta, conclusion.isAcceptableOrUnknown(data['conclusion']!, _conclusionMeta));
     }
-    if (data.containsKey('mlflow_url')) {
-      context.handle(_mlflowUrlMeta, mlflowUrl.isAcceptableOrUnknown(data['mlflow_url']!, _mlflowUrlMeta));
+    if (data.containsKey('mlflow_experiment_id')) {
+      context.handle(
+        _mlflowExperimentIdMeta,
+        mlflowExperimentId.isAcceptableOrUnknown(data['mlflow_experiment_id']!, _mlflowExperimentIdMeta),
+      );
+    }
+    if (data.containsKey('synced_at')) {
+      context.handle(_syncedAtMeta, syncedAt.isAcceptableOrUnknown(data['synced_at']!, _syncedAtMeta));
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -496,7 +512,11 @@ class $ExperimentsTable extends Experiments with TableInfo<$ExperimentsTable, Ex
       status: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}status'])!,
       description: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}description'])!,
       conclusion: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}conclusion'])!,
-      mlflowUrl: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}mlflow_url']),
+      mlflowExperimentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mlflow_experiment_id'],
+      ),
+      syncedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}synced_at']),
       createdAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
     );
@@ -515,7 +535,12 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
   final int status;
   final String description;
   final String conclusion;
-  final String? mlflowUrl;
+
+  /// Id of the MLflow experiment whose runs are synchronised.
+  final String? mlflowExperimentId;
+
+  /// Last successful synchronisation with the MLflow server (UTC millis).
+  final int? syncedAt;
   final int createdAt;
   final int updatedAt;
   const ExperimentRow({
@@ -525,7 +550,8 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
     required this.status,
     required this.description,
     required this.conclusion,
-    this.mlflowUrl,
+    this.mlflowExperimentId,
+    this.syncedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -540,8 +566,11 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
     map['status'] = Variable<int>(status);
     map['description'] = Variable<String>(description);
     map['conclusion'] = Variable<String>(conclusion);
-    if (!nullToAbsent || mlflowUrl != null) {
-      map['mlflow_url'] = Variable<String>(mlflowUrl);
+    if (!nullToAbsent || mlflowExperimentId != null) {
+      map['mlflow_experiment_id'] = Variable<String>(mlflowExperimentId);
+    }
+    if (!nullToAbsent || syncedAt != null) {
+      map['synced_at'] = Variable<int>(syncedAt);
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
@@ -556,7 +585,8 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
       status: Value(status),
       description: Value(description),
       conclusion: Value(conclusion),
-      mlflowUrl: mlflowUrl == null && nullToAbsent ? const Value.absent() : Value(mlflowUrl),
+      mlflowExperimentId: mlflowExperimentId == null && nullToAbsent ? const Value.absent() : Value(mlflowExperimentId),
+      syncedAt: syncedAt == null && nullToAbsent ? const Value.absent() : Value(syncedAt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -571,7 +601,8 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
       status: serializer.fromJson<int>(json['status']),
       description: serializer.fromJson<String>(json['description']),
       conclusion: serializer.fromJson<String>(json['conclusion']),
-      mlflowUrl: serializer.fromJson<String?>(json['mlflowUrl']),
+      mlflowExperimentId: serializer.fromJson<String?>(json['mlflowExperimentId']),
+      syncedAt: serializer.fromJson<int?>(json['syncedAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -586,7 +617,8 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
       'status': serializer.toJson<int>(status),
       'description': serializer.toJson<String>(description),
       'conclusion': serializer.toJson<String>(conclusion),
-      'mlflowUrl': serializer.toJson<String?>(mlflowUrl),
+      'mlflowExperimentId': serializer.toJson<String?>(mlflowExperimentId),
+      'syncedAt': serializer.toJson<int?>(syncedAt),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -599,7 +631,8 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
     int? status,
     String? description,
     String? conclusion,
-    Value<String?> mlflowUrl = const Value.absent(),
+    Value<String?> mlflowExperimentId = const Value.absent(),
+    Value<int?> syncedAt = const Value.absent(),
     int? createdAt,
     int? updatedAt,
   }) => ExperimentRow(
@@ -609,7 +642,8 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
     status: status ?? this.status,
     description: description ?? this.description,
     conclusion: conclusion ?? this.conclusion,
-    mlflowUrl: mlflowUrl.present ? mlflowUrl.value : this.mlflowUrl,
+    mlflowExperimentId: mlflowExperimentId.present ? mlflowExperimentId.value : this.mlflowExperimentId,
+    syncedAt: syncedAt.present ? syncedAt.value : this.syncedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -621,7 +655,8 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
       status: data.status.present ? data.status.value : this.status,
       description: data.description.present ? data.description.value : this.description,
       conclusion: data.conclusion.present ? data.conclusion.value : this.conclusion,
-      mlflowUrl: data.mlflowUrl.present ? data.mlflowUrl.value : this.mlflowUrl,
+      mlflowExperimentId: data.mlflowExperimentId.present ? data.mlflowExperimentId.value : this.mlflowExperimentId,
+      syncedAt: data.syncedAt.present ? data.syncedAt.value : this.syncedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -636,7 +671,8 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
           ..write('status: $status, ')
           ..write('description: $description, ')
           ..write('conclusion: $conclusion, ')
-          ..write('mlflowUrl: $mlflowUrl, ')
+          ..write('mlflowExperimentId: $mlflowExperimentId, ')
+          ..write('syncedAt: $syncedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -644,8 +680,18 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, projectId, status, description, conclusion, mlflowUrl, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    projectId,
+    status,
+    description,
+    conclusion,
+    mlflowExperimentId,
+    syncedAt,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -656,7 +702,8 @@ class ExperimentRow extends DataClass implements Insertable<ExperimentRow> {
           other.status == this.status &&
           other.description == this.description &&
           other.conclusion == this.conclusion &&
-          other.mlflowUrl == this.mlflowUrl &&
+          other.mlflowExperimentId == this.mlflowExperimentId &&
+          other.syncedAt == this.syncedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -668,7 +715,8 @@ class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
   final Value<int> status;
   final Value<String> description;
   final Value<String> conclusion;
-  final Value<String?> mlflowUrl;
+  final Value<String?> mlflowExperimentId;
+  final Value<int?> syncedAt;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const ExperimentsCompanion({
@@ -678,7 +726,8 @@ class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
     this.status = const Value.absent(),
     this.description = const Value.absent(),
     this.conclusion = const Value.absent(),
-    this.mlflowUrl = const Value.absent(),
+    this.mlflowExperimentId = const Value.absent(),
+    this.syncedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -689,7 +738,8 @@ class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
     this.status = const Value.absent(),
     this.description = const Value.absent(),
     this.conclusion = const Value.absent(),
-    this.mlflowUrl = const Value.absent(),
+    this.mlflowExperimentId = const Value.absent(),
+    this.syncedAt = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : name = Value(name),
@@ -702,7 +752,8 @@ class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
     Expression<int>? status,
     Expression<String>? description,
     Expression<String>? conclusion,
-    Expression<String>? mlflowUrl,
+    Expression<String>? mlflowExperimentId,
+    Expression<int>? syncedAt,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -713,7 +764,8 @@ class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
       if (status != null) 'status': status,
       if (description != null) 'description': description,
       if (conclusion != null) 'conclusion': conclusion,
-      if (mlflowUrl != null) 'mlflow_url': mlflowUrl,
+      if (mlflowExperimentId != null) 'mlflow_experiment_id': mlflowExperimentId,
+      if (syncedAt != null) 'synced_at': syncedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -726,7 +778,8 @@ class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
     Value<int>? status,
     Value<String>? description,
     Value<String>? conclusion,
-    Value<String?>? mlflowUrl,
+    Value<String?>? mlflowExperimentId,
+    Value<int?>? syncedAt,
     Value<int>? createdAt,
     Value<int>? updatedAt,
   }) {
@@ -737,7 +790,8 @@ class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
       status: status ?? this.status,
       description: description ?? this.description,
       conclusion: conclusion ?? this.conclusion,
-      mlflowUrl: mlflowUrl ?? this.mlflowUrl,
+      mlflowExperimentId: mlflowExperimentId ?? this.mlflowExperimentId,
+      syncedAt: syncedAt ?? this.syncedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -764,8 +818,11 @@ class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
     if (conclusion.present) {
       map['conclusion'] = Variable<String>(conclusion.value);
     }
-    if (mlflowUrl.present) {
-      map['mlflow_url'] = Variable<String>(mlflowUrl.value);
+    if (mlflowExperimentId.present) {
+      map['mlflow_experiment_id'] = Variable<String>(mlflowExperimentId.value);
+    }
+    if (syncedAt.present) {
+      map['synced_at'] = Variable<int>(syncedAt.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -785,7 +842,8 @@ class ExperimentsCompanion extends UpdateCompanion<ExperimentRow> {
           ..write('status: $status, ')
           ..write('description: $description, ')
           ..write('conclusion: $conclusion, ')
-          ..write('mlflowUrl: $mlflowUrl, ')
+          ..write('mlflowExperimentId: $mlflowExperimentId, ')
+          ..write('syncedAt: $syncedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -819,6 +877,15 @@ class $ExperimentRunsTable extends ExperimentRuns with TableInfo<$ExperimentRuns
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES experiments (id) ON DELETE CASCADE'),
   );
+  static const VerificationMeta _mlflowRunIdMeta = const VerificationMeta('mlflowRunId');
+  @override
+  late final GeneratedColumn<String> mlflowRunId = GeneratedColumn<String>(
+    'mlflow_run_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -829,24 +896,6 @@ class $ExperimentRunsTable extends ExperimentRuns with TableInfo<$ExperimentRuns
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
-  static const VerificationMeta _mlflowRunIdMeta = const VerificationMeta('mlflowRunId');
-  @override
-  late final GeneratedColumn<String> mlflowRunId = GeneratedColumn<String>(
-    'mlflow_run_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _urlMeta = const VerificationMeta('url');
-  @override
-  late final GeneratedColumn<String> url = GeneratedColumn<String>(
-    'url',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<int> status = GeneratedColumn<int>(
@@ -856,6 +905,44 @@ class $ExperimentRunsTable extends ExperimentRuns with TableInfo<$ExperimentRuns
     type: DriftSqlType.int,
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta('startedAt');
+  @override
+  late final GeneratedColumn<int> startedAt = GeneratedColumn<int>(
+    'started_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endedAtMeta = const VerificationMeta('endedAt');
+  @override
+  late final GeneratedColumn<int> endedAt = GeneratedColumn<int>(
+    'ended_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _metricsMeta = const VerificationMeta('metrics');
+  @override
+  late final GeneratedColumn<String> metrics = GeneratedColumn<String>(
+    'metrics',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _paramsMeta = const VerificationMeta('params');
+  @override
+  late final GeneratedColumn<String> params = GeneratedColumn<String>(
+    'params',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
   );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
@@ -898,10 +985,13 @@ class $ExperimentRunsTable extends ExperimentRuns with TableInfo<$ExperimentRuns
   List<GeneratedColumn> get $columns => [
     id,
     experimentId,
-    name,
     mlflowRunId,
-    url,
+    name,
     status,
+    startedAt,
+    endedAt,
+    metrics,
+    params,
     notes,
     reviewedAt,
     createdAt,
@@ -924,17 +1014,28 @@ class $ExperimentRunsTable extends ExperimentRuns with TableInfo<$ExperimentRuns
     } else if (isInserting) {
       context.missing(_experimentIdMeta);
     }
+    if (data.containsKey('mlflow_run_id')) {
+      context.handle(_mlflowRunIdMeta, mlflowRunId.isAcceptableOrUnknown(data['mlflow_run_id']!, _mlflowRunIdMeta));
+    } else if (isInserting) {
+      context.missing(_mlflowRunIdMeta);
+    }
     if (data.containsKey('name')) {
       context.handle(_nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
     }
-    if (data.containsKey('mlflow_run_id')) {
-      context.handle(_mlflowRunIdMeta, mlflowRunId.isAcceptableOrUnknown(data['mlflow_run_id']!, _mlflowRunIdMeta));
-    }
-    if (data.containsKey('url')) {
-      context.handle(_urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
-    }
     if (data.containsKey('status')) {
       context.handle(_statusMeta, status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(_startedAtMeta, startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta));
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(_endedAtMeta, endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta));
+    }
+    if (data.containsKey('metrics')) {
+      context.handle(_metricsMeta, metrics.isAcceptableOrUnknown(data['metrics']!, _metricsMeta));
+    }
+    if (data.containsKey('params')) {
+      context.handle(_paramsMeta, params.isAcceptableOrUnknown(data['params']!, _paramsMeta));
     }
     if (data.containsKey('notes')) {
       context.handle(_notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
@@ -963,10 +1064,13 @@ class $ExperimentRunsTable extends ExperimentRuns with TableInfo<$ExperimentRuns
     return ExperimentRunRow(
       id: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       experimentId: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}experiment_id'])!,
+      mlflowRunId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}mlflow_run_id'])!,
       name: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}name'])!,
-      mlflowRunId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}mlflow_run_id']),
-      url: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}url']),
       status: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}status'])!,
+      startedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}started_at']),
+      endedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}ended_at']),
+      metrics: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}metrics'])!,
+      params: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}params'])!,
       notes: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}notes'])!,
       reviewedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}reviewed_at']),
       createdAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
@@ -983,10 +1087,15 @@ class $ExperimentRunsTable extends ExperimentRuns with TableInfo<$ExperimentRuns
 class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow> {
   final int id;
   final int experimentId;
+  final String mlflowRunId;
   final String name;
-  final String? mlflowRunId;
-  final String? url;
   final int status;
+  final int? startedAt;
+  final int? endedAt;
+
+  /// JSON objects: latest metric values, and params.
+  final String metrics;
+  final String params;
   final String notes;
   final int? reviewedAt;
   final int createdAt;
@@ -994,10 +1103,13 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
   const ExperimentRunRow({
     required this.id,
     required this.experimentId,
+    required this.mlflowRunId,
     required this.name,
-    this.mlflowRunId,
-    this.url,
     required this.status,
+    this.startedAt,
+    this.endedAt,
+    required this.metrics,
+    required this.params,
     required this.notes,
     this.reviewedAt,
     required this.createdAt,
@@ -1008,14 +1120,17 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['experiment_id'] = Variable<int>(experimentId);
+    map['mlflow_run_id'] = Variable<String>(mlflowRunId);
     map['name'] = Variable<String>(name);
-    if (!nullToAbsent || mlflowRunId != null) {
-      map['mlflow_run_id'] = Variable<String>(mlflowRunId);
-    }
-    if (!nullToAbsent || url != null) {
-      map['url'] = Variable<String>(url);
-    }
     map['status'] = Variable<int>(status);
+    if (!nullToAbsent || startedAt != null) {
+      map['started_at'] = Variable<int>(startedAt);
+    }
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<int>(endedAt);
+    }
+    map['metrics'] = Variable<String>(metrics);
+    map['params'] = Variable<String>(params);
     map['notes'] = Variable<String>(notes);
     if (!nullToAbsent || reviewedAt != null) {
       map['reviewed_at'] = Variable<int>(reviewedAt);
@@ -1029,10 +1144,13 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
     return ExperimentRunsCompanion(
       id: Value(id),
       experimentId: Value(experimentId),
+      mlflowRunId: Value(mlflowRunId),
       name: Value(name),
-      mlflowRunId: mlflowRunId == null && nullToAbsent ? const Value.absent() : Value(mlflowRunId),
-      url: url == null && nullToAbsent ? const Value.absent() : Value(url),
       status: Value(status),
+      startedAt: startedAt == null && nullToAbsent ? const Value.absent() : Value(startedAt),
+      endedAt: endedAt == null && nullToAbsent ? const Value.absent() : Value(endedAt),
+      metrics: Value(metrics),
+      params: Value(params),
       notes: Value(notes),
       reviewedAt: reviewedAt == null && nullToAbsent ? const Value.absent() : Value(reviewedAt),
       createdAt: Value(createdAt),
@@ -1045,10 +1163,13 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
     return ExperimentRunRow(
       id: serializer.fromJson<int>(json['id']),
       experimentId: serializer.fromJson<int>(json['experimentId']),
+      mlflowRunId: serializer.fromJson<String>(json['mlflowRunId']),
       name: serializer.fromJson<String>(json['name']),
-      mlflowRunId: serializer.fromJson<String?>(json['mlflowRunId']),
-      url: serializer.fromJson<String?>(json['url']),
       status: serializer.fromJson<int>(json['status']),
+      startedAt: serializer.fromJson<int?>(json['startedAt']),
+      endedAt: serializer.fromJson<int?>(json['endedAt']),
+      metrics: serializer.fromJson<String>(json['metrics']),
+      params: serializer.fromJson<String>(json['params']),
       notes: serializer.fromJson<String>(json['notes']),
       reviewedAt: serializer.fromJson<int?>(json['reviewedAt']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -1061,10 +1182,13 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'experimentId': serializer.toJson<int>(experimentId),
+      'mlflowRunId': serializer.toJson<String>(mlflowRunId),
       'name': serializer.toJson<String>(name),
-      'mlflowRunId': serializer.toJson<String?>(mlflowRunId),
-      'url': serializer.toJson<String?>(url),
       'status': serializer.toJson<int>(status),
+      'startedAt': serializer.toJson<int?>(startedAt),
+      'endedAt': serializer.toJson<int?>(endedAt),
+      'metrics': serializer.toJson<String>(metrics),
+      'params': serializer.toJson<String>(params),
       'notes': serializer.toJson<String>(notes),
       'reviewedAt': serializer.toJson<int?>(reviewedAt),
       'createdAt': serializer.toJson<int>(createdAt),
@@ -1075,10 +1199,13 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
   ExperimentRunRow copyWith({
     int? id,
     int? experimentId,
+    String? mlflowRunId,
     String? name,
-    Value<String?> mlflowRunId = const Value.absent(),
-    Value<String?> url = const Value.absent(),
     int? status,
+    Value<int?> startedAt = const Value.absent(),
+    Value<int?> endedAt = const Value.absent(),
+    String? metrics,
+    String? params,
     String? notes,
     Value<int?> reviewedAt = const Value.absent(),
     int? createdAt,
@@ -1086,10 +1213,13 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
   }) => ExperimentRunRow(
     id: id ?? this.id,
     experimentId: experimentId ?? this.experimentId,
+    mlflowRunId: mlflowRunId ?? this.mlflowRunId,
     name: name ?? this.name,
-    mlflowRunId: mlflowRunId.present ? mlflowRunId.value : this.mlflowRunId,
-    url: url.present ? url.value : this.url,
     status: status ?? this.status,
+    startedAt: startedAt.present ? startedAt.value : this.startedAt,
+    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    metrics: metrics ?? this.metrics,
+    params: params ?? this.params,
     notes: notes ?? this.notes,
     reviewedAt: reviewedAt.present ? reviewedAt.value : this.reviewedAt,
     createdAt: createdAt ?? this.createdAt,
@@ -1099,10 +1229,13 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
     return ExperimentRunRow(
       id: data.id.present ? data.id.value : this.id,
       experimentId: data.experimentId.present ? data.experimentId.value : this.experimentId,
-      name: data.name.present ? data.name.value : this.name,
       mlflowRunId: data.mlflowRunId.present ? data.mlflowRunId.value : this.mlflowRunId,
-      url: data.url.present ? data.url.value : this.url,
+      name: data.name.present ? data.name.value : this.name,
       status: data.status.present ? data.status.value : this.status,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      metrics: data.metrics.present ? data.metrics.value : this.metrics,
+      params: data.params.present ? data.params.value : this.params,
       notes: data.notes.present ? data.notes.value : this.notes,
       reviewedAt: data.reviewedAt.present ? data.reviewedAt.value : this.reviewedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -1115,10 +1248,13 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
     return (StringBuffer('ExperimentRunRow(')
           ..write('id: $id, ')
           ..write('experimentId: $experimentId, ')
-          ..write('name: $name, ')
           ..write('mlflowRunId: $mlflowRunId, ')
-          ..write('url: $url, ')
+          ..write('name: $name, ')
           ..write('status: $status, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('metrics: $metrics, ')
+          ..write('params: $params, ')
           ..write('notes: $notes, ')
           ..write('reviewedAt: $reviewedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -1128,18 +1264,34 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, experimentId, name, mlflowRunId, url, status, notes, reviewedAt, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    experimentId,
+    mlflowRunId,
+    name,
+    status,
+    startedAt,
+    endedAt,
+    metrics,
+    params,
+    notes,
+    reviewedAt,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ExperimentRunRow &&
           other.id == this.id &&
           other.experimentId == this.experimentId &&
-          other.name == this.name &&
           other.mlflowRunId == this.mlflowRunId &&
-          other.url == this.url &&
+          other.name == this.name &&
           other.status == this.status &&
+          other.startedAt == this.startedAt &&
+          other.endedAt == this.endedAt &&
+          other.metrics == this.metrics &&
+          other.params == this.params &&
           other.notes == this.notes &&
           other.reviewedAt == this.reviewedAt &&
           other.createdAt == this.createdAt &&
@@ -1149,10 +1301,13 @@ class ExperimentRunRow extends DataClass implements Insertable<ExperimentRunRow>
 class ExperimentRunsCompanion extends UpdateCompanion<ExperimentRunRow> {
   final Value<int> id;
   final Value<int> experimentId;
+  final Value<String> mlflowRunId;
   final Value<String> name;
-  final Value<String?> mlflowRunId;
-  final Value<String?> url;
   final Value<int> status;
+  final Value<int?> startedAt;
+  final Value<int?> endedAt;
+  final Value<String> metrics;
+  final Value<String> params;
   final Value<String> notes;
   final Value<int?> reviewedAt;
   final Value<int> createdAt;
@@ -1160,10 +1315,13 @@ class ExperimentRunsCompanion extends UpdateCompanion<ExperimentRunRow> {
   const ExperimentRunsCompanion({
     this.id = const Value.absent(),
     this.experimentId = const Value.absent(),
-    this.name = const Value.absent(),
     this.mlflowRunId = const Value.absent(),
-    this.url = const Value.absent(),
+    this.name = const Value.absent(),
     this.status = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.metrics = const Value.absent(),
+    this.params = const Value.absent(),
     this.notes = const Value.absent(),
     this.reviewedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1172,24 +1330,31 @@ class ExperimentRunsCompanion extends UpdateCompanion<ExperimentRunRow> {
   ExperimentRunsCompanion.insert({
     this.id = const Value.absent(),
     required int experimentId,
+    required String mlflowRunId,
     this.name = const Value.absent(),
-    this.mlflowRunId = const Value.absent(),
-    this.url = const Value.absent(),
     this.status = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.metrics = const Value.absent(),
+    this.params = const Value.absent(),
     this.notes = const Value.absent(),
     this.reviewedAt = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   }) : experimentId = Value(experimentId),
+       mlflowRunId = Value(mlflowRunId),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<ExperimentRunRow> custom({
     Expression<int>? id,
     Expression<int>? experimentId,
-    Expression<String>? name,
     Expression<String>? mlflowRunId,
-    Expression<String>? url,
+    Expression<String>? name,
     Expression<int>? status,
+    Expression<int>? startedAt,
+    Expression<int>? endedAt,
+    Expression<String>? metrics,
+    Expression<String>? params,
     Expression<String>? notes,
     Expression<int>? reviewedAt,
     Expression<int>? createdAt,
@@ -1198,10 +1363,13 @@ class ExperimentRunsCompanion extends UpdateCompanion<ExperimentRunRow> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (experimentId != null) 'experiment_id': experimentId,
-      if (name != null) 'name': name,
       if (mlflowRunId != null) 'mlflow_run_id': mlflowRunId,
-      if (url != null) 'url': url,
+      if (name != null) 'name': name,
       if (status != null) 'status': status,
+      if (startedAt != null) 'started_at': startedAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (metrics != null) 'metrics': metrics,
+      if (params != null) 'params': params,
       if (notes != null) 'notes': notes,
       if (reviewedAt != null) 'reviewed_at': reviewedAt,
       if (createdAt != null) 'created_at': createdAt,
@@ -1212,10 +1380,13 @@ class ExperimentRunsCompanion extends UpdateCompanion<ExperimentRunRow> {
   ExperimentRunsCompanion copyWith({
     Value<int>? id,
     Value<int>? experimentId,
+    Value<String>? mlflowRunId,
     Value<String>? name,
-    Value<String?>? mlflowRunId,
-    Value<String?>? url,
     Value<int>? status,
+    Value<int?>? startedAt,
+    Value<int?>? endedAt,
+    Value<String>? metrics,
+    Value<String>? params,
     Value<String>? notes,
     Value<int?>? reviewedAt,
     Value<int>? createdAt,
@@ -1224,10 +1395,13 @@ class ExperimentRunsCompanion extends UpdateCompanion<ExperimentRunRow> {
     return ExperimentRunsCompanion(
       id: id ?? this.id,
       experimentId: experimentId ?? this.experimentId,
-      name: name ?? this.name,
       mlflowRunId: mlflowRunId ?? this.mlflowRunId,
-      url: url ?? this.url,
+      name: name ?? this.name,
       status: status ?? this.status,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      metrics: metrics ?? this.metrics,
+      params: params ?? this.params,
       notes: notes ?? this.notes,
       reviewedAt: reviewedAt ?? this.reviewedAt,
       createdAt: createdAt ?? this.createdAt,
@@ -1244,17 +1418,26 @@ class ExperimentRunsCompanion extends UpdateCompanion<ExperimentRunRow> {
     if (experimentId.present) {
       map['experiment_id'] = Variable<int>(experimentId.value);
     }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
     if (mlflowRunId.present) {
       map['mlflow_run_id'] = Variable<String>(mlflowRunId.value);
     }
-    if (url.present) {
-      map['url'] = Variable<String>(url.value);
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
     }
     if (status.present) {
       map['status'] = Variable<int>(status.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<int>(startedAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<int>(endedAt.value);
+    }
+    if (metrics.present) {
+      map['metrics'] = Variable<String>(metrics.value);
+    }
+    if (params.present) {
+      map['params'] = Variable<String>(params.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -1276,10 +1459,13 @@ class ExperimentRunsCompanion extends UpdateCompanion<ExperimentRunRow> {
     return (StringBuffer('ExperimentRunsCompanion(')
           ..write('id: $id, ')
           ..write('experimentId: $experimentId, ')
-          ..write('name: $name, ')
           ..write('mlflowRunId: $mlflowRunId, ')
-          ..write('url: $url, ')
+          ..write('name: $name, ')
           ..write('status: $status, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('metrics: $metrics, ')
+          ..write('params: $params, ')
           ..write('notes: $notes, ')
           ..write('reviewedAt: $reviewedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -4319,7 +4505,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final Index idxRunsExperiment = Index(
     'idx_runs_experiment',
-    'CREATE INDEX idx_runs_experiment ON experiment_runs (experiment_id)',
+    'CREATE UNIQUE INDEX idx_runs_experiment ON experiment_runs (experiment_id, mlflow_run_id)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables => allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4692,7 +4878,8 @@ typedef $$ExperimentsTableCreateCompanionBuilder = ExperimentsCompanion Function
   Value<int> status,
   Value<String> description,
   Value<String> conclusion,
-  Value<String?> mlflowUrl,
+  Value<String?> mlflowExperimentId,
+  Value<int?> syncedAt,
   required int createdAt,
   required int updatedAt,
 });
@@ -4703,7 +4890,8 @@ typedef $$ExperimentsTableUpdateCompanionBuilder = ExperimentsCompanion Function
   Value<int> status,
   Value<String> description,
   Value<String> conclusion,
-  Value<String?> mlflowUrl,
+  Value<String?> mlflowExperimentId,
+  Value<int?> syncedAt,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -4771,8 +4959,11 @@ class $$ExperimentsTableFilterComposer extends Composer<_$AppDatabase, $Experime
   ColumnFilters<String> get conclusion =>
       $composableBuilder(column: $table.conclusion, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get mlflowUrl =>
-      $composableBuilder(column: $table.mlflowUrl, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get mlflowExperimentId =>
+      $composableBuilder(column: $table.mlflowExperimentId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get syncedAt =>
+      $composableBuilder(column: $table.syncedAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -4857,8 +5048,11 @@ class $$ExperimentsTableOrderingComposer extends Composer<_$AppDatabase, $Experi
   ColumnOrderings<String> get conclusion =>
       $composableBuilder(column: $table.conclusion, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get mlflowUrl =>
-      $composableBuilder(column: $table.mlflowUrl, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get mlflowExperimentId =>
+      $composableBuilder(column: $table.mlflowExperimentId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get syncedAt =>
+      $composableBuilder(column: $table.syncedAt, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => ColumnOrderings(column));
@@ -4904,7 +5098,10 @@ class $$ExperimentsTableAnnotationComposer extends Composer<_$AppDatabase, $Expe
 
   GeneratedColumn<String> get conclusion => $composableBuilder(column: $table.conclusion, builder: (column) => column);
 
-  GeneratedColumn<String> get mlflowUrl => $composableBuilder(column: $table.mlflowUrl, builder: (column) => column);
+  GeneratedColumn<String> get mlflowExperimentId =>
+      $composableBuilder(column: $table.mlflowExperimentId, builder: (column) => column);
+
+  GeneratedColumn<int> get syncedAt => $composableBuilder(column: $table.syncedAt, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt => $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -4998,7 +5195,8 @@ class $$ExperimentsTableTableManager
                 Value<int> status = const Value.absent(),
                 Value<String> description = const Value.absent(),
                 Value<String> conclusion = const Value.absent(),
-                Value<String?> mlflowUrl = const Value.absent(),
+                Value<String?> mlflowExperimentId = const Value.absent(),
+                Value<int?> syncedAt = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
               }) => ExperimentsCompanion(
@@ -5008,7 +5206,8 @@ class $$ExperimentsTableTableManager
                 status: status,
                 description: description,
                 conclusion: conclusion,
-                mlflowUrl: mlflowUrl,
+                mlflowExperimentId: mlflowExperimentId,
+                syncedAt: syncedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -5020,7 +5219,8 @@ class $$ExperimentsTableTableManager
                 Value<int> status = const Value.absent(),
                 Value<String> description = const Value.absent(),
                 Value<String> conclusion = const Value.absent(),
-                Value<String?> mlflowUrl = const Value.absent(),
+                Value<String?> mlflowExperimentId = const Value.absent(),
+                Value<int?> syncedAt = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
               }) => ExperimentsCompanion.insert(
@@ -5030,7 +5230,8 @@ class $$ExperimentsTableTableManager
                 status: status,
                 description: description,
                 conclusion: conclusion,
-                mlflowUrl: mlflowUrl,
+                mlflowExperimentId: mlflowExperimentId,
+                syncedAt: syncedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -5116,10 +5317,13 @@ typedef $$ExperimentsTableProcessedTableManager =
 typedef $$ExperimentRunsTableCreateCompanionBuilder = ExperimentRunsCompanion Function({
   Value<int> id,
   required int experimentId,
+  required String mlflowRunId,
   Value<String> name,
-  Value<String?> mlflowRunId,
-  Value<String?> url,
   Value<int> status,
+  Value<int?> startedAt,
+  Value<int?> endedAt,
+  Value<String> metrics,
+  Value<String> params,
   Value<String> notes,
   Value<int?> reviewedAt,
   required int createdAt,
@@ -5128,10 +5332,13 @@ typedef $$ExperimentRunsTableCreateCompanionBuilder = ExperimentRunsCompanion Fu
 typedef $$ExperimentRunsTableUpdateCompanionBuilder = ExperimentRunsCompanion Function({
   Value<int> id,
   Value<int> experimentId,
+  Value<String> mlflowRunId,
   Value<String> name,
-  Value<String?> mlflowRunId,
-  Value<String?> url,
   Value<int> status,
+  Value<int?> startedAt,
+  Value<int?> endedAt,
+  Value<String> metrics,
+  Value<String> params,
   Value<String> notes,
   Value<int?> reviewedAt,
   Value<int> createdAt,
@@ -5178,15 +5385,25 @@ class $$ExperimentRunsTableFilterComposer extends Composer<_$AppDatabase, $Exper
   });
   ColumnFilters<int> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get name => $composableBuilder(column: $table.name, builder: (column) => ColumnFilters(column));
-
   ColumnFilters<String> get mlflowRunId =>
       $composableBuilder(column: $table.mlflowRunId, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get url => $composableBuilder(column: $table.url, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get name => $composableBuilder(column: $table.name, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get status =>
       $composableBuilder(column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get metrics =>
+      $composableBuilder(column: $table.metrics, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get params =>
+      $composableBuilder(column: $table.params, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => ColumnFilters(column));
@@ -5247,17 +5464,26 @@ class $$ExperimentRunsTableOrderingComposer extends Composer<_$AppDatabase, $Exp
   });
   ColumnOrderings<int> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => ColumnOrderings(column));
-
   ColumnOrderings<String> get mlflowRunId =>
       $composableBuilder(column: $table.mlflowRunId, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get url =>
-      $composableBuilder(column: $table.url, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get status =>
       $composableBuilder(column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get metrics =>
+      $composableBuilder(column: $table.metrics, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get params =>
+      $composableBuilder(column: $table.params, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => ColumnOrderings(column));
@@ -5300,14 +5526,20 @@ class $$ExperimentRunsTableAnnotationComposer extends Composer<_$AppDatabase, $E
   });
   GeneratedColumn<int> get id => $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get name => $composableBuilder(column: $table.name, builder: (column) => column);
-
   GeneratedColumn<String> get mlflowRunId =>
       $composableBuilder(column: $table.mlflowRunId, builder: (column) => column);
 
-  GeneratedColumn<String> get url => $composableBuilder(column: $table.url, builder: (column) => column);
+  GeneratedColumn<String> get name => $composableBuilder(column: $table.name, builder: (column) => column);
 
   GeneratedColumn<int> get status => $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get startedAt => $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get endedAt => $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get metrics => $composableBuilder(column: $table.metrics, builder: (column) => column);
+
+  GeneratedColumn<String> get params => $composableBuilder(column: $table.params, builder: (column) => column);
 
   GeneratedColumn<String> get notes => $composableBuilder(column: $table.notes, builder: (column) => column);
 
@@ -5381,10 +5613,13 @@ class $$ExperimentRunsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<int> experimentId = const Value.absent(),
+                Value<String> mlflowRunId = const Value.absent(),
                 Value<String> name = const Value.absent(),
-                Value<String?> mlflowRunId = const Value.absent(),
-                Value<String?> url = const Value.absent(),
                 Value<int> status = const Value.absent(),
+                Value<int?> startedAt = const Value.absent(),
+                Value<int?> endedAt = const Value.absent(),
+                Value<String> metrics = const Value.absent(),
+                Value<String> params = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 Value<int?> reviewedAt = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
@@ -5392,10 +5627,13 @@ class $$ExperimentRunsTableTableManager
               }) => ExperimentRunsCompanion(
                 id: id,
                 experimentId: experimentId,
-                name: name,
                 mlflowRunId: mlflowRunId,
-                url: url,
+                name: name,
                 status: status,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                metrics: metrics,
+                params: params,
                 notes: notes,
                 reviewedAt: reviewedAt,
                 createdAt: createdAt,
@@ -5405,10 +5643,13 @@ class $$ExperimentRunsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required int experimentId,
+                required String mlflowRunId,
                 Value<String> name = const Value.absent(),
-                Value<String?> mlflowRunId = const Value.absent(),
-                Value<String?> url = const Value.absent(),
                 Value<int> status = const Value.absent(),
+                Value<int?> startedAt = const Value.absent(),
+                Value<int?> endedAt = const Value.absent(),
+                Value<String> metrics = const Value.absent(),
+                Value<String> params = const Value.absent(),
                 Value<String> notes = const Value.absent(),
                 Value<int?> reviewedAt = const Value.absent(),
                 required int createdAt,
@@ -5416,10 +5657,13 @@ class $$ExperimentRunsTableTableManager
               }) => ExperimentRunsCompanion.insert(
                 id: id,
                 experimentId: experimentId,
-                name: name,
                 mlflowRunId: mlflowRunId,
-                url: url,
+                name: name,
                 status: status,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                metrics: metrics,
+                params: params,
                 notes: notes,
                 reviewedAt: reviewedAt,
                 createdAt: createdAt,

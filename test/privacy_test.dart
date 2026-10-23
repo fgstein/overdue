@@ -2,9 +2,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Guards the "100% offline" requirement at the source level.
+/// Guards the "offline except MLflow" requirement at the source level.
 void main() {
-  test('application code uses no networking APIs', () {
+  /// The only file allowed to use the network: the read-only client of the
+  /// MLflow server configured by the user.
+  const mlflowClient = 'lib/src/services/mlflow/mlflow_client.dart';
+
+  test('application code uses no networking APIs, except the MLflow client', () {
     final forbidden = RegExp(
       r'HttpClient|HttpServer|WebSocket|RawSocket|SecureSocket|Socket\.connect|ServerSocket|'
       r'package:http/|package:dio/|InternetAddress\.lookup|NetworkInterface|RawDatagramSocket|'
@@ -14,7 +18,7 @@ void main() {
     );
     final offenders = <String>[];
     for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
-      if (!f.path.endsWith('.dart')) continue;
+      if (!f.path.endsWith('.dart') || f.path.replaceAll('\\', '/') == mlflowClient) continue;
       final lines = f.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         if (forbidden.hasMatch(lines[i])) offenders.add('${f.path}:${i + 1}: ${lines[i].trim()}');
@@ -34,8 +38,14 @@ void main() {
     expect(packages.where(banned.hasMatch).toList(), isEmpty);
   });
 
-  test('release Android manifest removes the INTERNET permission', () {
-    final manifest = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
-    expect(manifest, contains('android:name="android.permission.INTERNET" tools:node="remove"'));
+  test('the MLflow client only reads from the configured server', () {
+    final src = File(mlflowClient).readAsStringSync();
+    // Only POST to the MLflow search endpoints of the user's server.
+    expect(RegExp(r"_post\('([a-z/]+)'").allMatches(src).map((m) => m.group(1)).toSet(), {
+      'experiments/search',
+      'runs/search',
+    });
+    expect(src, isNot(contains('getUrl(')));
+    expect(src.contains('package:http/') || src.contains('package:dio/'), isFalse);
   });
 }

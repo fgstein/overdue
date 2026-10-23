@@ -6,6 +6,8 @@ import '../../app/app_services.dart';
 import '../../core/local_date.dart';
 import '../../domain/experiments.dart';
 import '../../domain/models.dart';
+import '../../services/mlflow/mlflow_client.dart';
+import '../formatting.dart';
 import '../editor/quick_add.dart';
 import '../widgets/live_query.dart';
 import '../widgets/markdown_editor.dart';
@@ -40,10 +42,37 @@ class _ExperimentPageState extends State<ExperimentPage> {
 
   int get _id => widget.experimentId;
 
+  /// Runs being read from MLflow, and the last error.
+  bool _syncing = false;
+  String? _syncError;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final first = !_ready;
     _s = AppScope.of(context);
+    _ready = true;
+    if (first) unawaited(_sync());
+  }
+
+  bool _ready = false;
+
+  Future<void> _sync() async {
+    final e = await _s.experiments.getExperiment(_id);
+    if (e?.mlflowExperimentId == null || !_s.mlflow.configured || !mounted) return;
+    setState(() => _syncing = true);
+    String? error;
+    try {
+      await _s.mlflow.syncExperiment(_id);
+    } on MlflowException catch (x) {
+      error = x.message;
+    }
+    if (mounted) {
+      setState(() {
+        _syncing = false;
+        _syncError = error;
+      });
+    }
   }
 
   @override
@@ -95,14 +124,14 @@ class _ExperimentPageState extends State<ExperimentPage> {
           appBar: AppBar(
             title: Text(e.name),
             actions: [
-              if (e.mlflowUrl != null)
+              if (_s.mlflow.experimentUrl(e) != null)
                 IconButton(
                   tooltip: 'Open in MLflow',
                   icon: const Icon(Icons.open_in_new),
-                  onPressed: () => ExperimentUi.openUrl(context, e.mlflowUrl),
+                  onPressed: () => ExperimentUi.openUrl(context, _s.mlflow.experimentUrl(e)),
                 ),
               IconButton(
-                tooltip: 'Rename, MLflow page, project',
+                tooltip: 'Rename, MLflow experiment, project',
                 icon: const Icon(Icons.edit_outlined),
                 onPressed: () => ExperimentUi.editExperiment(context, experiment: e),
               ),
@@ -126,7 +155,7 @@ class _ExperimentPageState extends State<ExperimentPage> {
                   _sectionTitle(context, 'Hypothesis & notes'),
                   MarkdownEditor(controller: _description, onChanged: _changed, startInPreview: true),
                   const SizedBox(height: 20),
-                  _RunsSection(experiment: e),
+                  _RunsSection(experiment: e, syncing: _syncing, error: _syncError, onSync: _sync),
                   const SizedBox(height: 20),
                   _TasksSection(experiment: e),
                   const SizedBox(height: 20),
@@ -143,7 +172,6 @@ class _ExperimentPageState extends State<ExperimentPage> {
 
   Widget _header(BuildContext context, Experiment e) {
     final scheme = Theme.of(context).colorScheme;
-    final link = e.link;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -188,17 +216,17 @@ class _ExperimentPageState extends State<ExperimentPage> {
               );
             },
           ),
-        if (link?.experimentId != null)
+        if (e.mlflowExperimentId != null)
           ActionChip(
             avatar: const Icon(Icons.tag, size: 18),
-            label: Text('MLflow experiment ${link!.experimentId}'),
+            label: Text('MLflow experiment ${e.mlflowExperimentId}'),
             tooltip: 'Copy the experiment id',
-            onPressed: () => ExperimentUi.copy(context, link.experimentId!, 'Experiment id'),
-          ),
-        if (e.mlflowUrl == null)
+            onPressed: () => ExperimentUi.copy(context, e.mlflowExperimentId!, 'Experiment id'),
+          )
+        else
           ActionChip(
             avatar: const Icon(Icons.link, size: 18),
-            label: const Text('Add the MLflow page'),
+            label: const Text('Link to MLflow'),
             onPressed: () => ExperimentUi.editExperiment(context, experiment: e),
           ),
       ],
@@ -222,13 +250,19 @@ Widget _sectionTitle(BuildContext context, String title, {List<Widget> actions =
 }
 
 class _RunsSection extends StatelessWidget {
-  const _RunsSection({required this.experiment});
+  const _RunsSection({required this.experiment, required this.syncing, required this.error, required this.onSync});
   final Experiment experiment;
+  final bool syncing;
+  final String? error;
+  final VoidCallback onSync;
 
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final linked = experiment.mlflowExperimentId != null;
+    final synced = experiment.syncedAt;
     return LiveQuery<List<ExperimentRun>>(
       id: experiment.id,
       stream: () => s.experiments.watchRuns(experiment.id),
@@ -242,29 +276,77 @@ class _RunsSection extends StatelessWidget {
               context,
               'Runs',
               actions: [
-                TextButton.icon(
-                  onPressed: () => ExperimentUi.editRun(context, experiment),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add run'),
-                ),
+                if (linked && synced != null)
+                  Text(
+                    'from MLflow · ${Fmt.timestamp(synced, s.today.value)}',
+                    style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline),
+                  ),
+                if (linked && s.mlflow.configured)
+                  syncing
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                        )
+                      : IconButton(tooltip: 'Refresh from MLflow', icon: const Icon(Icons.refresh), onPressed: onSync),
               ],
             ),
-            if (runs == null || runs.isEmpty)
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                child: Text(error!, style: TextStyle(color: scheme.error)),
+              ),
+            if (!linked || !s.mlflow.configured)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        !s.mlflow.configured
+                            ? 'Set the MLflow server in Settings: the runs of the linked MLflow experiment '
+                                  'then appear here by themselves.'
+                            : 'Link this experiment to an MLflow experiment to follow its runs.',
+                        style: TextStyle(color: scheme.outline),
+                      ),
+                    ),
+                    if (!linked && s.mlflow.configured)
+                      TextButton.icon(
+                        onPressed: () => ExperimentUi.editExperiment(context, experiment: experiment),
+                        icon: const Icon(Icons.link),
+                        label: const Text('Link to MLflow'),
+                      ),
+                  ],
+                ),
+              ),
+            if (linked && (runs == null || runs.isEmpty) && s.mlflow.configured && error == null)
               Padding(
                 padding: const EdgeInsets.all(8),
                 child: Text(
-                  'No run yet. Paste the URL (or id) of an MLflow run when you launch it.',
+                  syncing ? 'Reading the runs…' : 'No run in this MLflow experiment yet.',
                   style: TextStyle(color: scheme.outline),
                 ),
-              )
-            else
-              for (final r in runs)
-                _RunTile(key: ValueKey(r.id), experiment: experiment, run: r, openTasks: openTasks?[r.id] ?? 0),
+              ),
+            for (final r in runs ?? const <ExperimentRun>[])
+              _RunTile(key: ValueKey(r.id), experiment: experiment, run: r, openTasks: openTasks?[r.id] ?? 0),
           ],
         ),
       ),
     );
   }
+}
+
+String _duration(Duration d) {
+  if (d.inDays > 0) return '${d.inDays}d ${d.inHours % 24}h';
+  if (d.inHours > 0) return '${d.inHours}h ${d.inMinutes % 60}min';
+  if (d.inMinutes > 0) return '${d.inMinutes}min';
+  return '${d.inSeconds}s';
+}
+
+String _number(double v) {
+  if (v == v.roundToDouble() && v.abs() < 1e9) return v.toInt().toString();
+  final a = v.abs();
+  if (a >= 1e5 || a < 1e-3) return v.toStringAsExponential(3);
+  return v.toStringAsPrecision(4);
 }
 
 class _RunTile extends StatelessWidget {
@@ -273,17 +355,27 @@ class _RunTile extends StatelessWidget {
   final ExperimentRun run;
   final int openTasks;
 
+  /// Metrics shown on the row (all of them in the details).
+  static const _shownMetrics = 6;
+
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final today = s.today.value;
+    final url = s.mlflow.runUrl(experiment, run);
+    final started = run.startedAt;
     final details = [
-      if (run.mlflowRunId != null) MlflowLink.shortId(run.mlflowRunId!),
+      MlflowServer.shortId(run.mlflowRunId),
       run.status.label,
+      if (started != null) Fmt.timestamp(started, today),
+      if (started != null && run.endedAt != null) _duration(run.endedAt!.difference(started)),
       if (run.status.isTerminal) run.reviewed ? 'reviewed' : 'to review',
       if (openTasks > 0) '$openTasks open task${openTasks == 1 ? '' : 's'}',
     ].join(' · ');
+    final metrics = run.metrics.keys.toList()..sort();
+    final small = theme.textTheme.bodySmall;
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       elevation: 0,
@@ -295,29 +387,14 @@ class _RunTile extends StatelessWidget {
           children: [
             ListTile(
               dense: true,
-              contentPadding: const EdgeInsets.only(left: 4, right: 4),
-              leading: PopupMenuButton<RunStatus>(
-                tooltip: 'Run status',
-                initialValue: run.status,
-                onSelected: (v) => s.experiments.setRunStatus(run.id, v),
-                itemBuilder: (_) => [
-                  for (final v in RunStatus.values)
-                    PopupMenuItem(
-                      value: v,
-                      child: Row(
-                        children: [
-                          Icon(ExperimentUi.runIcon(v), color: ExperimentUi.runColor(v, scheme)),
-                          const SizedBox(width: 8),
-                          Text(v.label),
-                        ],
-                      ),
-                    ),
-                ],
-                icon: Icon(ExperimentUi.runIcon(run.status), color: ExperimentUi.runColor(run.status, scheme)),
+              contentPadding: const EdgeInsets.only(left: 12, right: 4),
+              leading: Tooltip(
+                message: run.status.label,
+                child: Icon(ExperimentUi.runIcon(run.status), color: ExperimentUi.runColor(run.status, scheme)),
               ),
               title: Text(run.label, style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text(details, style: TextStyle(color: run.toReview ? Colors.orange : scheme.outline)),
-              onTap: () => ExperimentUi.editRun(context, experiment, run: run),
+              onTap: () => _showDetails(context, url),
               trailing: Wrap(
                 children: [
                   if (run.status.isTerminal)
@@ -330,11 +407,11 @@ class _RunTile extends StatelessWidget {
                       ),
                       onPressed: () => s.experiments.setReviewed(run.id, !run.reviewed),
                     ),
-                  if (run.url != null)
+                  if (url != null)
                     IconButton(
                       tooltip: 'Open in MLflow',
                       icon: const Icon(Icons.open_in_new, size: 20),
-                      onPressed: () => ExperimentUi.openUrl(context, run.url),
+                      onPressed: () => ExperimentUi.openUrl(context, url),
                     ),
                   IconButton(
                     tooltip: 'New task for this run',
@@ -354,36 +431,113 @@ class _RunTile extends StatelessWidget {
                     icon: const Icon(Icons.more_vert, size: 20),
                     onSelected: (v) async {
                       switch (v) {
-                        case 'edit':
-                          await ExperimentUi.editRun(context, experiment, run: run);
+                        case 'notes':
+                          await ExperimentUi.editRunNotes(context, run);
+                        case 'details':
+                          await _showDetails(context, url);
                         case 'copy':
-                          await ExperimentUi.copy(context, run.mlflowRunId!, 'Run id');
-                        case 'delete':
-                          final ok = await ExperimentUi.confirm(
-                            context,
-                            'Delete run?',
-                            '“${run.label}” will be deleted. Its tasks stay linked to the experiment.',
-                          );
-                          if (ok) await s.experiments.deleteRun(run.id);
+                          await ExperimentUi.copy(context, run.mlflowRunId, 'Run id');
                       }
                     },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Edit (name, link, notes)')),
-                      if (run.mlflowRunId != null) const PopupMenuItem(value: 'copy', child: Text('Copy run id')),
-                      const PopupMenuItem(value: 'delete', child: Text('Delete run')),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'notes', child: Text('Notes…')),
+                      PopupMenuItem(value: 'details', child: Text('Metrics and params')),
+                      PopupMenuItem(value: 'copy', child: Text('Copy run id')),
                     ],
                   ),
                 ],
               ),
             ),
+            if (metrics.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(56, 0, 16, 6),
+                child: Wrap(
+                  spacing: 14,
+                  runSpacing: 2,
+                  children: [
+                    for (final k in metrics.take(_shownMetrics))
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '$k ',
+                              style: TextStyle(color: scheme.outline),
+                            ),
+                            TextSpan(
+                              text: _number(run.metrics[k]!),
+                              style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+                            ),
+                          ],
+                        ),
+                        style: small,
+                      ),
+                    if (metrics.length > _shownMetrics)
+                      Text('+${metrics.length - _shownMetrics}', style: small?.copyWith(color: scheme.outline)),
+                  ],
+                ),
+              ),
             if (run.notes.trim().isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(56, 0, 16, 8),
-                child: DefaultTextStyle.merge(style: theme.textTheme.bodySmall, child: MarkdownView(run.notes)),
+                child: DefaultTextStyle.merge(style: small, child: MarkdownView(run.notes)),
               ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _showDetails(BuildContext context, String? url) {
+    final metrics = run.metrics.keys.toList()..sort();
+    final params = run.params.keys.toList()..sort();
+    return showDialog<void>(
+      context: context,
+      builder: (c) {
+        final theme = Theme.of(c);
+        Widget row(String k, String v) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SelectableText(k, style: TextStyle(color: theme.colorScheme.outline)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: SelectableText(v)),
+            ],
+          ),
+        );
+        Widget title(String t) => Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 4),
+          child: Text(t, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+        );
+        return AlertDialog(
+          title: Text(run.label),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  row('Run id', run.mlflowRunId),
+                  row('Status', run.status.label),
+                  title('Metrics'),
+                  if (metrics.isEmpty) const Text('None'),
+                  for (final k in metrics) row(k, _number(run.metrics[k]!)),
+                  title('Params'),
+                  if (params.isEmpty) const Text('None'),
+                  for (final k in params) row(k, run.params[k]!),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            if (url != null)
+              TextButton(onPressed: () => ExperimentUi.openUrl(c, url), child: const Text('Open in MLflow')),
+            TextButton(onPressed: () => Navigator.pop(c), child: const Text('Close')),
+          ],
+        );
+      },
     );
   }
 }

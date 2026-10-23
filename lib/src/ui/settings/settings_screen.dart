@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
@@ -7,8 +8,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_services.dart';
 import '../../core/local_date.dart';
+import '../../domain/experiments.dart';
 import '../../services/activity_export.dart';
 import '../../services/backup_service.dart';
+import '../../services/mlflow/mlflow_client.dart';
 import '../formatting.dart';
 import '../theme.dart';
 
@@ -186,6 +189,8 @@ class SettingsScreen extends StatelessWidget {
                     onTap: platform.moveWindowsToPrimaryScreen,
                   ),
                 ],
+                const _Header('MLflow'),
+                const _MlflowSection(),
                 const _Header('Backups'),
                 const _BackupSection(),
                 const _Header('Activity export'),
@@ -224,10 +229,11 @@ class SettingsScreen extends StatelessWidget {
                 const _Header('Privacy & data'),
                 const ListTile(
                   leading: Icon(Icons.wifi_off),
-                  title: Text('100% offline'),
+                  title: Text('Offline, except MLflow'),
                   subtitle: Text(
-                    'Overdue never connects to the Internet: no accounts, sync, analytics, telemetry, '
-                    'crash reporting or ads. Links in descriptions open in your own browser only when you click them.',
+                    'Overdue only connects to the MLflow server you set above, to read experiments and runs. '
+                    'No accounts, sync, analytics, telemetry, crash reporting or ads. '
+                    'Links in descriptions open in your own browser only when you click them.',
                   ),
                 ),
                 ListTile(
@@ -246,6 +252,121 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Tracking server, token, automatic refresh and a connection test.
+class _MlflowSection extends StatefulWidget {
+  const _MlflowSection();
+  @override
+  State<_MlflowSection> createState() => _MlflowSectionState();
+}
+
+class _MlflowSectionState extends State<_MlflowSection> {
+  late final _s = AppScope.of(context);
+  late final _server = TextEditingController(text: _s.settings.mlflowServer);
+  late final _token = TextEditingController(text: _s.settings.mlflowToken);
+  String? _result;
+  bool _ok = false;
+  bool _testing = false;
+
+  @override
+  void dispose() {
+    _server.dispose();
+    _token.dispose();
+    super.dispose();
+  }
+
+  void _saveServer() {
+    final text = _server.text.trim();
+    final normalized = MlflowServer.normalize(text);
+    _s.settings.mlflowServer = normalized ?? text;
+    if (normalized != null && normalized != text) _server.text = normalized;
+  }
+
+  Future<void> _test() async {
+    _saveServer();
+    _s.settings.mlflowToken = _token.text.trim();
+    setState(() => _testing = true);
+    try {
+      final list = await _s.mlflow.listExperiments();
+      _ok = true;
+      _result = 'Connected: ${list.length} experiment${list.length == 1 ? '' : 's'}';
+      unawaited(_s.mlflow.syncAll());
+    } on MlflowException catch (e) {
+      _ok = false;
+      _result = e.message;
+    }
+    if (mounted) setState(() => _testing = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final st = _s.settings;
+    final scheme = Theme.of(context).colorScheme;
+    final invalid = _server.text.trim().isNotEmpty && MlflowServer.normalize(_server.text) == null;
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.dns_outlined),
+          title: TextField(
+            controller: _server,
+            decoration: InputDecoration(
+              labelText: 'Tracking server',
+              hintText: 'http://localhost:5000',
+              helperText: 'Runs of linked experiments are read from it. user:password@host for basic auth.',
+              helperMaxLines: 2,
+              errorText: invalid ? 'Not an http(s) URL' : null,
+            ),
+            keyboardType: TextInputType.url,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _saveServer(),
+            onTapOutside: (_) => _saveServer(),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.key_outlined),
+          title: TextField(
+            controller: _token,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Token (optional)',
+              helperText: 'Sent as “Authorization: Bearer” (e.g. Databricks). Stored in the local database.',
+              helperMaxLines: 2,
+            ),
+            onSubmitted: (v) => st.mlflowToken = v.trim(),
+            onTapOutside: (_) => st.mlflowToken = _token.text.trim(),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.update),
+          title: const Text('Refresh runs automatically'),
+          subtitle: const Text('Active experiments, while the main window is open'),
+          trailing: DropdownButton<int>(
+            value: const [0, 1, 2, 5, 15, 60].contains(st.mlflowRefreshMinutes) ? st.mlflowRefreshMinutes : 2,
+            items: const [
+              DropdownMenuItem(value: 0, child: Text('Off')),
+              DropdownMenuItem(value: 1, child: Text('Every minute')),
+              DropdownMenuItem(value: 2, child: Text('Every 2 min')),
+              DropdownMenuItem(value: 5, child: Text('Every 5 min')),
+              DropdownMenuItem(value: 15, child: Text('Every 15 min')),
+              DropdownMenuItem(value: 60, child: Text('Every hour')),
+            ],
+            onChanged: (v) => st.mlflowRefreshMinutes = v!,
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.network_check),
+          title: Text(
+            _result ?? 'Test the connection',
+            style: _result == null ? null : TextStyle(color: _ok ? Colors.green : scheme.error),
+          ),
+          trailing: _testing
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : OutlinedButton(onPressed: invalid ? null : _test, child: const Text('Test')),
+        ),
+      ],
     );
   }
 }

@@ -194,9 +194,19 @@
             "dsl_features": []
           },
           {
-            "name": "mlflow_url",
-            "getter_name": "mlflowUrl",
+            "name": "mlflow_experiment_id",
+            "getter_name": "mlflowExperimentId",
             "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "synced_at",
+            "getter_name": "syncedAt",
+            "moor_type": "int",
             "nullable": true,
             "customConstraints": null,
             "default_dart": null,
@@ -282,6 +292,16 @@
             ]
           },
           {
+            "name": "mlflow_run_id",
+            "getter_name": "mlflowRunId",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
             "name": "name",
             "getter_name": "name",
             "moor_type": "string",
@@ -292,32 +312,52 @@
             "dsl_features": []
           },
           {
-            "name": "mlflow_run_id",
-            "getter_name": "mlflowRunId",
-            "moor_type": "string",
-            "nullable": true,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "url",
-            "getter_name": "url",
-            "moor_type": "string",
-            "nullable": true,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
             "name": "status",
             "getter_name": "status",
             "moor_type": "int",
             "nullable": false,
             "customConstraints": null,
             "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "started_at",
+            "getter_name": "startedAt",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "ended_at",
+            "getter_name": "endedAt",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "metrics",
+            "getter_name": "metrics",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": "const CustomExpression('\\'{}\\'')",
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
+            "name": "params",
+            "getter_name": "params",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": "const CustomExpression('\\'{}\\'')",
             "default_client_dart": null,
             "dsl_features": []
           },
@@ -1467,10 +1507,14 @@
         "on": 2,
         "name": "idx_runs_experiment",
         "sql": null,
-        "unique": false,
+        "unique": true,
         "columns": [
           {
             "column": "experiment_id",
+            "order_by": null
+          },
+          {
+            "column": "mlflow_run_id",
             "order_by": null
           }
         ]
@@ -1492,7 +1536,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"experiments\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"name\" TEXT NOT NULL, \"project_id\" INTEGER NULL REFERENCES projects (id) ON DELETE SET NULL, \"status\" INTEGER NOT NULL DEFAULT 0, \"description\" TEXT NOT NULL DEFAULT '', \"conclusion\" TEXT NOT NULL DEFAULT '', \"mlflow_url\" TEXT NULL, \"created_at\" INTEGER NOT NULL, \"updated_at\" INTEGER NOT NULL);"
+          "sql": "CREATE TABLE IF NOT EXISTS \"experiments\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"name\" TEXT NOT NULL, \"project_id\" INTEGER NULL REFERENCES projects (id) ON DELETE SET NULL, \"status\" INTEGER NOT NULL DEFAULT 0, \"description\" TEXT NOT NULL DEFAULT '', \"conclusion\" TEXT NOT NULL DEFAULT '', \"mlflow_experiment_id\" TEXT NULL, \"synced_at\" INTEGER NULL, \"created_at\" INTEGER NOT NULL, \"updated_at\" INTEGER NOT NULL);"
         }
       ]
     },
@@ -1501,7 +1545,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"experiment_runs\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"experiment_id\" INTEGER NOT NULL REFERENCES experiments (id) ON DELETE CASCADE, \"name\" TEXT NOT NULL DEFAULT '', \"mlflow_run_id\" TEXT NULL, \"url\" TEXT NULL, \"status\" INTEGER NOT NULL DEFAULT 0, \"notes\" TEXT NOT NULL DEFAULT '', \"reviewed_at\" INTEGER NULL, \"created_at\" INTEGER NOT NULL, \"updated_at\" INTEGER NOT NULL);"
+          "sql": "CREATE TABLE IF NOT EXISTS \"experiment_runs\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"experiment_id\" INTEGER NOT NULL REFERENCES experiments (id) ON DELETE CASCADE, \"mlflow_run_id\" TEXT NOT NULL, \"name\" TEXT NOT NULL DEFAULT '', \"status\" INTEGER NOT NULL DEFAULT 0, \"started_at\" INTEGER NULL, \"ended_at\" INTEGER NULL, \"metrics\" TEXT NOT NULL DEFAULT '{}', \"params\" TEXT NOT NULL DEFAULT '{}', \"notes\" TEXT NOT NULL DEFAULT '', \"reviewed_at\" INTEGER NULL, \"created_at\" INTEGER NOT NULL, \"updated_at\" INTEGER NOT NULL);"
         }
       ]
     },
@@ -1681,7 +1725,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE INDEX idx_runs_experiment ON experiment_runs (experiment_id)"
+          "sql": "CREATE UNIQUE INDEX idx_runs_experiment ON experiment_runs (experiment_id, mlflow_run_id)"
         }
       ]
     }

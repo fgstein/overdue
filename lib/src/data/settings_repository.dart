@@ -95,6 +95,18 @@ class AppSettings extends ChangeNotifier {
   bool get globalHotkeyEnabled => _bool('hotkey.enabled', true);
   set globalHotkeyEnabled(bool v) => unawaited(_set('hotkey.enabled', v ? '1' : '0'));
 
+  /// MLflow tracking server (e.g. `http://localhost:5000`); empty = none.
+  String get mlflowServer => _values['mlflow.server'] ?? '';
+  set mlflowServer(String v) => unawaited(_set('mlflow.server', v));
+
+  /// Optional token sent as `Authorization: Bearer` (e.g. Databricks).
+  String get mlflowToken => _values['mlflow.token'] ?? '';
+  set mlflowToken(String v) => unawaited(_set('mlflow.token', v));
+
+  /// Automatic refresh of the runs of active experiments, in minutes (0 = off).
+  int get mlflowRefreshMinutes => _int('mlflow.refreshMinutes', 2);
+  set mlflowRefreshMinutes(int v) => unawaited(_set('mlflow.refreshMinutes', '$v'));
+
   /// One-time upgrade: the overlay became "on by default" (it used to be
   /// switched off when closed), so turn it back on once for existing users.
   Future<void> upgradeOverlayDefault() async {

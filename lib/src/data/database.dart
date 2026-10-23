@@ -162,21 +162,33 @@ class Experiments extends Table {
   IntColumn get status => integer().withDefault(const Constant(0))();
   TextColumn get description => text().withDefault(const Constant(''))();
   TextColumn get conclusion => text().withDefault(const Constant(''))();
-  TextColumn get mlflowUrl => text().nullable()();
+
+  /// Id of the MLflow experiment whose runs are synchronised.
+  TextColumn get mlflowExperimentId => text().nullable()();
+
+  /// Last successful synchronisation with the MLflow server (UTC millis).
+  IntColumn get syncedAt => integer().nullable()();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 }
 
-/// Runs of an experiment (references to MLflow runs). Added in schema v5.
+/// Runs of an experiment, mirrored from the MLflow server (name, status,
+/// times, metrics, params); [notes] and [reviewedAt] are local.
+/// Added in schema v5.
 @DataClassName('ExperimentRunRow')
-@TableIndex(name: 'idx_runs_experiment', columns: {#experimentId})
+@TableIndex(name: 'idx_runs_experiment', columns: {#experimentId, #mlflowRunId}, unique: true)
 class ExperimentRuns extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get experimentId => integer().references(Experiments, #id, onDelete: KeyAction.cascade)();
+  TextColumn get mlflowRunId => text()();
   TextColumn get name => text().withDefault(const Constant(''))();
-  TextColumn get mlflowRunId => text().nullable()();
-  TextColumn get url => text().nullable()();
   IntColumn get status => integer().withDefault(const Constant(0))();
+  IntColumn get startedAt => integer().nullable()();
+  IntColumn get endedAt => integer().nullable()();
+
+  /// JSON objects: latest metric values, and params.
+  TextColumn get metrics => text().withDefault(const Constant('{}'))();
+  TextColumn get params => text().withDefault(const Constant('{}'))();
   TextColumn get notes => text().withDefault(const Constant(''))();
   IntColumn get reviewedAt => integer().nullable()();
   IntColumn get createdAt => integer()();

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../core/local_date.dart';
@@ -61,15 +63,23 @@ class ExperimentRepository {
   Future<Experiment?> getExperiment(int id) =>
       (db.select(db.experiments)..where((e) => e.id.equals(id))).getSingleOrNull().then((r) => r?.toDomain());
 
-  /// Runs of an experiment, newest first.
+  /// Runs of an experiment, most recently started first.
   Stream<List<ExperimentRun>> watchRuns(int experimentId) =>
       (db.select(db.experimentRuns)
             ..where((r) => r.experimentId.equals(experimentId))
-            ..orderBy([(r) => OrderingTerm.desc(r.createdAt), (r) => OrderingTerm.desc(r.id)]))
+            ..orderBy([
+              (r) => OrderingTerm(expression: r.startedAt, mode: OrderingMode.desc, nulls: NullsOrder.first),
+              (r) => OrderingTerm.desc(r.id),
+            ]))
           .watch()
           .map((rows) => rows.map((r) => r.toDomain()).toList());
 
-  Future<List<ExperimentRun>> getRuns(int experimentId) => watchRuns(experimentId).first;
+  /// Plain read (not `watchRuns(…).first`, which would wait for the
+  /// transaction it is called from).
+  Future<List<ExperimentRun>> getRuns(int experimentId) async =>
+      (await (db.select(db.experimentRuns)..where((r) => r.experimentId.equals(experimentId))).get())
+          .map((r) => r.toDomain())
+          .toList();
 
   /// Every run, newest first (pickers).
   Future<List<ExperimentRun>> getAllRuns() async =>
@@ -86,14 +96,19 @@ class ExperimentRepository {
   /// oldest first.
   Stream<List<RunWithExperiment>> watchRunsToReview() => db
       .customSelect(
-        'SELECT r.*, e.name AS e_name FROM experiment_runs r JOIN experiments e ON e.id = r.experiment_id '
-        'WHERE r.status IN $_terminalRuns AND r.reviewed_at IS NULL ORDER BY r.updated_at, r.id',
+        'SELECT r.*, e.name AS e_name, e.mlflow_experiment_id AS e_mlflow FROM experiment_runs r JOIN experiments e ON e.id = r.experiment_id '
+        'WHERE r.status IN $_terminalRuns AND r.reviewed_at IS NULL ORDER BY r.ended_at, r.id',
         readsFrom: {db.experimentRuns, db.experiments},
       )
       .watch()
       .map(
         (rows) => [
-          for (final r in rows) RunWithExperiment(db.experimentRuns.map(r.data).toDomain(), r.read<String>('e_name')),
+          for (final r in rows)
+            RunWithExperiment(
+              db.experimentRuns.map(r.data).toDomain(),
+              r.read<String>('e_name'),
+              mlflowExperimentId: r.readNullable<String>('e_mlflow'),
+            ),
         ],
       );
 
@@ -117,7 +132,7 @@ class ExperimentRepository {
     int? projectId,
     ExperimentStatus status = ExperimentStatus.planned,
     String description = '',
-    String? mlflowUrl,
+    String? mlflowExperimentId,
   }) {
     final now = _now;
     return db
@@ -128,15 +143,17 @@ class ExperimentRepository {
             projectId: Value(projectId),
             status: Value(status.code),
             description: Value(description),
-            mlflowUrl: Value(_blankToNull(mlflowUrl)),
+            mlflowExperimentId: Value(_blankToNull(mlflowExperimentId)),
             createdAt: now,
             updatedAt: now,
           ),
         );
   }
 
-  /// Updates the given fields; [projectId] and [mlflowUrl] are only changed
-  /// when [setProject] / [setUrl] are true (so they can be cleared).
+  /// Updates the given fields; [projectId] and [mlflowExperimentId] are only
+  /// changed when [setProject] / [setMlflow] are true (so they can be
+  /// cleared). Linking another MLflow experiment drops the runs synchronised
+  /// from the previous one.
   Future<void> update(
     int id, {
     String? name,
@@ -145,122 +162,128 @@ class ExperimentRepository {
     String? conclusion,
     bool setProject = false,
     int? projectId,
-    bool setUrl = false,
-    String? mlflowUrl,
-  }) => (db.update(db.experiments)..where((e) => e.id.equals(id))).write(
-    ExperimentsCompanion(
-      name: name == null ? const Value.absent() : Value(name.trim()),
-      status: status == null ? const Value.absent() : Value(status.code),
-      description: description == null ? const Value.absent() : Value(description),
-      conclusion: conclusion == null ? const Value.absent() : Value(conclusion),
-      projectId: setProject ? Value(projectId) : const Value.absent(),
-      mlflowUrl: setUrl ? Value(_blankToNull(mlflowUrl)) : const Value.absent(),
-      updatedAt: Value(_now),
-    ),
-  );
+    bool setMlflow = false,
+    String? mlflowExperimentId,
+  }) => db.transaction(() async {
+    final mlflowId = _blankToNull(mlflowExperimentId);
+    final old = setMlflow ? await getExperiment(id) : null;
+    final relinked = old != null && old.mlflowExperimentId != mlflowId;
+    if (relinked) await (db.delete(db.experimentRuns)..where((r) => r.experimentId.equals(id))).go();
+    await (db.update(db.experiments)..where((e) => e.id.equals(id))).write(
+      ExperimentsCompanion(
+        name: name == null ? const Value.absent() : Value(name.trim()),
+        status: status == null ? const Value.absent() : Value(status.code),
+        description: description == null ? const Value.absent() : Value(description),
+        conclusion: conclusion == null ? const Value.absent() : Value(conclusion),
+        projectId: setProject ? Value(projectId) : const Value.absent(),
+        mlflowExperimentId: relinked ? Value(mlflowId) : const Value.absent(),
+        syncedAt: relinked ? const Value(null) : const Value.absent(),
+        updatedAt: Value(_now),
+      ),
+    );
+  });
 
   /// Deletes an experiment and its runs. Linked tasks are kept, unlinked.
   Future<void> delete(int id) => (db.delete(db.experiments)..where((e) => e.id.equals(id))).go();
 
   // ---------------------------------------------------------------------------
-  // Runs
+  // Runs (synchronised from MLflow)
   // ---------------------------------------------------------------------------
 
-  /// Adds a run. Without [url], the URL is derived from the experiment's
-  /// MLflow page when [mlflowRunId] is known.
-  Future<int> addRun(
-    int experimentId, {
-    String name = '',
-    String? mlflowRunId,
-    String? url,
-    RunStatus status = RunStatus.running,
-    String notes = '',
-  }) => db.transaction(() async {
+  /// Experiments to synchronise: linked to MLflow and not done/abandoned
+  /// (all linked ones when [includeClosed]).
+  Future<List<Experiment>> linkedExperiments({bool includeClosed = false}) async =>
+      (await (db.select(db.experiments)..where((e) => e.mlflowExperimentId.isNotNull())).get())
+          .map((r) => r.toDomain())
+          .where((e) => includeClosed || e.status.isActive)
+          .toList();
+
+  /// Applies the runs read from MLflow: new runs are added, known ones
+  /// updated (name, status, times, metrics, params); local notes and the
+  /// reviewed mark are kept, except that a run running again is no longer
+  /// "reviewed". Runs no longer on the server are kept.
+  ///
+  /// The experiment follows its runs: a run starting moves an idea/planned
+  /// experiment to "Running"; the last run ending moves a running one to
+  /// "To analyse". Returns the number of runs added or changed.
+  Future<int> applyRemoteRuns(int experimentId, List<RemoteRun> remote) => db.transaction(() async {
     final now = _now;
-    final runId = _blankToNull(mlflowRunId);
-    var link = _blankToNull(url);
-    if (link == null && runId != null) {
-      link = MlflowLink.runUrl((await getExperiment(experimentId))?.mlflowUrl, runId);
-    }
-    final id = await db
-        .into(db.experimentRuns)
-        .insert(
-          ExperimentRunsCompanion.insert(
-            experimentId: experimentId,
-            name: Value(name.trim()),
-            mlflowRunId: Value(runId),
-            url: Value(link),
-            status: Value(status.code),
-            notes: Value(notes),
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
-    await _touch(experimentId, now);
-    // Launching a run starts a planned experiment.
-    if (status == RunStatus.running) {
-      await db.customUpdate(
-        'UPDATE experiments SET status = ? WHERE id = ? AND status IN (?, ?)',
-        variables: [
-          Variable.withInt(ExperimentStatus.running.code),
-          Variable.withInt(experimentId),
-          Variable.withInt(ExperimentStatus.idea.code),
-          Variable.withInt(ExperimentStatus.planned.code),
-        ],
-        updates: {db.experiments},
+    final local = {for (final r in await getRuns(experimentId)) r.mlflowRunId: r};
+    var changed = 0;
+    var started = false, ended = false;
+    for (final r in remote) {
+      final old = local[r.runId];
+      final metrics = jsonEncode(r.metrics);
+      final params = jsonEncode(r.params);
+      final startedAt = r.startedAt?.toUtc().millisecondsSinceEpoch;
+      final endedAt = r.endedAt?.toUtc().millisecondsSinceEpoch;
+      if (old == null) {
+        await db
+            .into(db.experimentRuns)
+            .insert(
+              ExperimentRunsCompanion.insert(
+                experimentId: experimentId,
+                mlflowRunId: r.runId,
+                name: Value(r.name),
+                status: Value(r.status.code),
+                startedAt: Value(startedAt),
+                endedAt: Value(endedAt),
+                metrics: Value(metrics),
+                params: Value(params),
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+        changed++;
+        started |= !r.status.isTerminal;
+        continue;
+      }
+      final same =
+          old.name == r.name &&
+          old.status == r.status &&
+          old.startedAt?.millisecondsSinceEpoch == startedAt &&
+          old.endedAt?.millisecondsSinceEpoch == endedAt &&
+          jsonEncode(old.metrics) == metrics &&
+          jsonEncode(old.params) == params;
+      if (same) continue;
+      await (db.update(db.experimentRuns)..where((x) => x.id.equals(old.id))).write(
+        ExperimentRunsCompanion(
+          name: Value(r.name),
+          status: Value(r.status.code),
+          startedAt: Value(startedAt),
+          endedAt: Value(endedAt),
+          metrics: Value(metrics),
+          params: Value(params),
+          reviewedAt: r.status.isTerminal ? const Value.absent() : const Value(null),
+          updatedAt: Value(now),
+        ),
       );
+      changed++;
+      if (old.status.isTerminal && !r.status.isTerminal) started = true;
+      if (!old.status.isTerminal && r.status.isTerminal) ended = true;
     }
-    return id;
-  });
 
-  Future<void> updateRun(
-    int id, {
-    String? name,
-    bool setRunId = false,
-    String? mlflowRunId,
-    bool setUrl = false,
-    String? url,
-    String? notes,
-  }) => db.transaction(() async {
-    final now = _now;
-    await (db.update(db.experimentRuns)..where((r) => r.id.equals(id))).write(
-      ExperimentRunsCompanion(
-        name: name == null ? const Value.absent() : Value(name.trim()),
-        mlflowRunId: setRunId ? Value(_blankToNull(mlflowRunId)) : const Value.absent(),
-        url: setUrl ? Value(_blankToNull(url)) : const Value.absent(),
-        notes: notes == null ? const Value.absent() : Value(notes),
-        updatedAt: Value(now),
+    final exp = (await getExperiment(experimentId))!;
+    final anyActive = (await getRuns(experimentId)).any((r) => !r.status.isTerminal);
+    ExperimentStatus? next;
+    if (started && (exp.status == ExperimentStatus.idea || exp.status == ExperimentStatus.planned)) {
+      next = ExperimentStatus.running;
+    } else if (ended && !anyActive && exp.status == ExperimentStatus.running) {
+      next = ExperimentStatus.analysing;
+    }
+    await (db.update(db.experiments)..where((e) => e.id.equals(experimentId))).write(
+      ExperimentsCompanion(
+        syncedAt: Value(now),
+        status: next == null ? const Value.absent() : Value(next.code),
+        updatedAt: changed > 0 || next != null ? Value(now) : const Value.absent(),
       ),
     );
-    await _touchRunExperiment(id, now);
+    return changed;
   });
 
-  /// Changes a run's status. A run that is no longer over loses its
-  /// "reviewed" mark; when the last running run of a running experiment
-  /// ends, the experiment moves to "To analyse".
-  Future<void> setRunStatus(int id, RunStatus status) => db.transaction(() async {
-    final now = _now;
-    await (db.update(db.experimentRuns)..where((r) => r.id.equals(id))).write(
-      ExperimentRunsCompanion(
-        status: Value(status.code),
-        reviewedAt: status.isTerminal ? const Value.absent() : const Value(null),
-        updatedAt: Value(now),
-      ),
-    );
-    final run = await getRun(id);
-    if (run == null) return;
-    await _touch(run.experimentId, now);
-    final exp = await getExperiment(run.experimentId);
-    if (exp == null) return;
-    final runs = await getRuns(run.experimentId);
-    final anyActive = runs.any((r) => !r.status.isTerminal);
-    if (status.isTerminal && !anyActive && exp.status == ExperimentStatus.running) {
-      await update(exp.id, status: ExperimentStatus.analysing);
-    } else if (status == RunStatus.running &&
-        (exp.status == ExperimentStatus.idea || exp.status == ExperimentStatus.planned)) {
-      await update(exp.id, status: ExperimentStatus.running);
-    }
-  });
+  /// Local notes on a run (kept across synchronisations).
+  Future<void> setRunNotes(int id, String notes) =>
+      (db.update(db.experimentRuns)..where((r) => r.id.equals(id))).write(ExperimentRunsCompanion(notes: Value(notes)));
 
   /// Marks a run's results as reviewed (or not).
   Future<void> setReviewed(int id, bool reviewed) => db.transaction(() async {
@@ -268,11 +291,9 @@ class ExperimentRepository {
     await (db.update(db.experimentRuns)..where((r) => r.id.equals(id))).write(
       ExperimentRunsCompanion(reviewedAt: Value(reviewed ? now : null), updatedAt: Value(now)),
     );
-    await _touchRunExperiment(id, now);
+    final run = await getRun(id);
+    if (run != null) await _touch(run.experimentId, now);
   });
-
-  /// Deletes a run. Linked tasks stay linked to its experiment.
-  Future<void> deleteRun(int id) => (db.delete(db.experimentRuns)..where((r) => r.id.equals(id))).go();
 
   // ---------------------------------------------------------------------------
   // Task links
@@ -295,11 +316,6 @@ class ExperimentRepository {
   Future<void> _touch(int experimentId, int now) => (db.update(
     db.experiments,
   )..where((e) => e.id.equals(experimentId))).write(ExperimentsCompanion(updatedAt: Value(now)));
-
-  Future<void> _touchRunExperiment(int runId, int now) async {
-    final run = await getRun(runId);
-    if (run != null) await _touch(run.experimentId, now);
-  }
 
   static String? _blankToNull(String? s) {
     final t = s?.trim();
