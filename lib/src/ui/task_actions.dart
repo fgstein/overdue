@@ -233,6 +233,22 @@ class _QuickActionsSheet extends StatelessWidget {
             ],
             const SizedBox(height: 8),
             const Divider(),
+            if (task.afterTaskId != null && occurrence == null)
+              ListTile(
+                leading: const Icon(Icons.link_off),
+                title: const Text('Remove from the chain'),
+                subtitle: Text(
+                  item.afterTitle == null
+                      ? 'No longer waits for another task'
+                      : item.isWaitingInChain
+                      ? 'Waits for “${item.afterTitle}”; it can start now instead'
+                      : 'Was chained after “${item.afterTitle}”',
+                ),
+                onTap: () {
+                  close();
+                  s.tasks.unchain(task.id);
+                },
+              ),
             if (status.isOpen)
               ListTile(
                 leading: const Icon(Icons.redo),

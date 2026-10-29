@@ -1,6 +1,7 @@
 import '../core/local_date.dart';
 import 'enums.dart';
 import 'models.dart';
+import 'task_chains.dart';
 
 enum AgendaSectionKind {
   todayUrgent('Urgent'),
@@ -17,7 +18,13 @@ enum AgendaSectionKind {
 /// One line in the agenda: a task, one occurrence of a recurring task, or
 /// the struck-through trace of a task postponed away from that day.
 class AgendaEntry {
-  const AgendaEntry({required this.item, this.occurrence, this.missedCount = 0, this.postponement});
+  const AgendaEntry({
+    required this.item,
+    this.occurrence,
+    this.missedCount = 0,
+    this.postponement,
+    this.chain = const [],
+  });
 
   final TaskListItem item;
   final Occurrence? occurrence;
@@ -28,6 +35,9 @@ class AgendaEntry {
   /// Set for the trace of a postponed task (not actionable).
   final PostponedItem? postponement;
   bool get isPostponed => postponement != null;
+
+  /// Tasks chained after this one, waiting for it (shown folded under it).
+  final List<ChainLink> chain;
 
   Task get task => item.task;
   bool get isOccurrence => occurrence != null;
@@ -95,6 +105,7 @@ abstract final class AgendaBuilder {
     required List<TaskListItem> tasks,
     required List<(TaskListItem, Occurrence)> occurrences,
     List<PostponedItem> postponed = const [],
+    TaskChains? chains,
   }) {
     final end = today.addDays(upcomingDays);
     final urgent = <AgendaEntry>[];
@@ -170,6 +181,10 @@ abstract final class AgendaBuilder {
       }
     }
 
+    if (chains != null && !chains.isEmpty) {
+      _foldChains(chains, [urgent, dueToday, ongoing, recurring, overdue, ...upcoming.values]);
+    }
+
     final sections = <AgendaSection>[
       if (urgent.isNotEmpty) AgendaSection(AgendaSectionKind.todayUrgent, urgent),
       if (dueToday.isNotEmpty) AgendaSection(AgendaSectionKind.today, dueToday),
@@ -180,6 +195,31 @@ abstract final class AgendaBuilder {
         AgendaSection(AgendaSectionKind.upcoming, upcoming[day]!, date: LocalDate.fromEpochDay(day)),
     ];
     return Agenda(today: today, sections: sections);
+  }
+
+  /// Tasks waiting for another task of the agenda leave their own line and
+  /// are shown folded under it (anywhere in the agenda).
+  static void _foldChains(TaskChains chains, List<List<AgendaEntry>> lists) {
+    bool isTask(AgendaEntry e) => !e.isPostponed && !e.isOccurrence;
+    final followers = <int, List<ChainLink>>{};
+    final hosted = <int>{};
+    for (final l in lists) {
+      for (final e in l.where(isTask)) {
+        final f = chains.followers(e.task.id);
+        if (f.isEmpty) continue;
+        followers[e.task.id] = f;
+        hosted.addAll(f.map((c) => c.item.task.id));
+      }
+    }
+    if (followers.isEmpty) return;
+    for (final l in lists) {
+      l.removeWhere((e) => isTask(e) && hosted.contains(e.task.id));
+      for (var i = 0; i < l.length; i++) {
+        final e = l[i];
+        final f = isTask(e) ? followers[e.task.id] : null;
+        if (f != null) l[i] = AgendaEntry(item: e.item, chain: f);
+      }
+    }
   }
 
   static int _cmpMinute(AgendaEntry a, AgendaEntry b) {

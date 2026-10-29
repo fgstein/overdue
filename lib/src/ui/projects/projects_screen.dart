@@ -7,6 +7,7 @@ import '../../core/local_date.dart';
 import '../../data/project_repository.dart';
 import '../../domain/enums.dart';
 import '../../domain/models.dart';
+import '../../domain/task_chains.dart';
 import '../../domain/task_query.dart';
 import '../editor/quick_add.dart';
 import '../formatting.dart';
@@ -15,6 +16,7 @@ import '../tasks/tasks_screen.dart';
 import '../theme.dart';
 import '../widgets/live_query.dart';
 import '../widgets/overlay_button.dart';
+import '../widgets/task_chain.dart';
 import '../widgets/task_drag.dart';
 
 /// Projects as a Kanban board: one vertical column per project, side by
@@ -151,54 +153,62 @@ class _SwimlaneBoardState extends State<_SwimlaneBoard> {
       builder: (context, projects) => LiveQuery<List<TaskListItem>>(
         id: 'lane-tasks',
         stream: () => s.tasks.watchQuery(const TaskQuery(includeSubtasks: false, limit: 5000)),
-        builder: (context, tasks) {
-          if (projects == null || tasks == null) return const SizedBox.shrink();
-          final byLane = <int, List<TaskListItem>>{};
-          for (final t in tasks) {
-            byLane.putIfAbsent(t.task.projectId ?? _noProject, () => []).add(t);
-          }
-          final lanes = [
-            for (final p in projects) (p.project.id, p.project.name, Color(p.project.color), p.project),
-            (_noProject, 'No project', AppTheme.projectColor(null, Theme.of(context).colorScheme), null),
-          ];
-          return ValueListenableBuilder<LocalDate>(
-            valueListenable: s.today,
-            builder: (context, today, _) => Scrollbar(
-              controller: _scroll,
-              thumbVisibility: s.platform.isDesktop,
-              child: ListView(
-                controller: _scroll,
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-                children: [
-                  if (projects.isEmpty)
-                    SizedBox(
-                      width: 220,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          'Create projects to group your tasks; drag cards between columns to move them.',
-                          style: TextStyle(color: Theme.of(context).colorScheme.outline),
-                        ),
-                      ),
-                    ),
-                  for (final (id, name, color, project) in lanes)
-                    _Lane(
-                      key: ValueKey('lane$id'),
-                      laneId: id,
-                      name: name,
-                      color: color,
-                      project: project,
-                      tasks: byLane[id] ?? const [],
-                      today: today,
-                      collapsed: _collapsed!.contains(id),
-                      onToggle: () => _toggle(id),
-                    ),
-                ],
+        builder: (context, tasks) => LiveQuery<List<TaskListItem>>(
+          id: 'chain-waiting',
+          stream: s.tasks.watchWaitingInChain,
+          builder: (context, waiting) => _board(context, projects, tasks, TaskChains(waiting ?? const [])),
+        ),
+      ),
+    );
+  }
+
+  Widget _board(BuildContext context, List<ProjectWithCount>? projects, List<TaskListItem>? tasks, TaskChains chains) {
+    final s = AppScope.of(context);
+    if (projects == null || tasks == null) return const SizedBox.shrink();
+    final byLane = <int, List<TaskListItem>>{};
+    for (final t in tasks) {
+      byLane.putIfAbsent(t.task.projectId ?? _noProject, () => []).add(t);
+    }
+    final lanes = [
+      for (final p in projects) (p.project.id, p.project.name, Color(p.project.color), p.project),
+      (_noProject, 'No project', AppTheme.projectColor(null, Theme.of(context).colorScheme), null),
+    ];
+    return ValueListenableBuilder<LocalDate>(
+      valueListenable: s.today,
+      builder: (context, today, _) => Scrollbar(
+        controller: _scroll,
+        thumbVisibility: s.platform.isDesktop,
+        child: ListView(
+          controller: _scroll,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+          children: [
+            if (projects.isEmpty)
+              SizedBox(
+                width: 220,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Create projects to group your tasks; drag cards between columns to move them.',
+                    style: TextStyle(color: Theme.of(context).colorScheme.outline),
+                  ),
+                ),
               ),
-            ),
-          );
-        },
+            for (final (id, name, color, project) in lanes)
+              _Lane(
+                key: ValueKey('lane$id'),
+                laneId: id,
+                name: name,
+                color: color,
+                project: project,
+                // Chained tasks fold under their predecessor in the same column.
+                tasks: chains.fold(byLane[id] ?? const <TaskListItem>[], (t) => t.task.id),
+                today: today,
+                collapsed: _collapsed!.contains(id),
+                onToggle: () => _toggle(id),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -220,7 +230,9 @@ class _Lane extends StatelessWidget {
   final String name;
   final Color color;
   final Project? project;
-  final List<TaskListItem> tasks;
+
+  /// Column cards, each with the chained tasks folded under it.
+  final List<(TaskListItem, List<ChainLink>)> tasks;
   final LocalDate today;
   final bool collapsed;
   final VoidCallback onToggle;
@@ -281,7 +293,7 @@ class _Lane extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             // A tiny summary of what is inside.
-            for (final t in tasks.take(12))
+            for (final (t, _) in tasks.take(12))
               Padding(
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Container(
@@ -381,7 +393,19 @@ class _Lane extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
                   itemCount: tasks.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _TaskCard(key: ValueKey(tasks[i].task.id), item: tasks[i], today: today),
+                  itemBuilder: (_, i) {
+                    final (item, chain) = tasks[i];
+                    if (chain.isEmpty) return _TaskCard(key: ValueKey(item.task.id), item: item, today: today);
+                    final card = _TaskCard(item: item, today: today);
+                    return Column(
+                      key: ValueKey(item.task.id),
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        card,
+                        ChainFold(links: chain, color: color),
+                      ],
+                    );
+                  },
                 ),
         ),
       ],
@@ -460,6 +484,11 @@ class _TaskCard extends StatelessWidget {
                                 color: AppTheme.statusColor(t.status, scheme),
                               ),
                             ),
+                          if (item.isWaitingInChain)
+                            Text(
+                              'After ${item.afterTitle}',
+                              style: theme.textTheme.labelSmall?.copyWith(color: scheme.tertiary),
+                            ),
                           if (item.subtaskCount > 0)
                             Text(
                               '${item.subtaskDone}/${item.subtaskCount}',
@@ -478,6 +507,12 @@ class _TaskCard extends StatelessWidget {
         ),
       ),
     );
-    return DraggableTask(data: TaskDragData(t), enabled: true, touchLongPress: !s.platform.isDesktop, child: card);
+    return DraggableTask(
+      data: TaskDragData(t),
+      enabled: true,
+      touchLongPress: !s.platform.isDesktop,
+      // Drop another task onto this card: this one starts after it.
+      child: ChainDropTarget(task: t, radius: BorderRadius.circular(8), child: card),
+    );
   }
 }

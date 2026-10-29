@@ -222,6 +222,7 @@ class _TaskEditorPageState extends State<TaskEditorPage> {
                   MarkdownEditor(controller: _description, startInPreview: true, onChanged: (_) => _onTextChanged()),
                   const SizedBox(height: 16),
                   _SubtasksSection(parent: task),
+                  if (!task.isRecurring) _ChainSection(task: task),
                   if (task.isRecurring) ...[const SizedBox(height: 16), _OccurrencesSection(task: task)],
                   const SizedBox(height: 24),
                   _footer(context, task, today),
@@ -550,6 +551,78 @@ class _RemindersSection extends StatelessWidget {
                     onPressed: () => s.tasks.deleteReminder(r.id!),
                   ),
                 ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Chained tasks: the task this one starts after, and those that start
+/// after it. Links are made by dropping one task onto another.
+class _ChainSection extends StatelessWidget {
+  const _ChainSection({required this.task});
+  final Task task;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    Widget row(IconData icon, String prefix, Task t, VoidCallback onUnlink) => ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, size: 20, color: scheme.tertiary),
+      title: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$prefix ',
+              style: TextStyle(color: scheme.outline),
+            ),
+            TextSpan(
+              text: t.title,
+              style: TextStyle(decoration: t.status.isClosed ? TextDecoration.lineThrough : null),
+            ),
+          ],
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(t.status.label),
+      onTap: () => TaskActions.open(context, t.id),
+      trailing: IconButton(tooltip: 'Remove from the chain', icon: const Icon(Icons.link_off), onPressed: onUnlink),
+    );
+
+    final after = task.afterTaskId;
+    return LiveQuery<List<TaskListItem>>(
+      id: ('chain', task.id),
+      stream: () => s.tasks.watchChainedAfter(task.id),
+      builder: (context, next) {
+        final followers = next ?? const <TaskListItem>[];
+        if (after == null && followers.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _sectionTitle(context, 'Chain'),
+              if (after != null)
+                LiveQuery<Task?>(
+                  id: ('after', after),
+                  stream: () => s.tasks.watchTask(after),
+                  builder: (context, a) => a == null
+                      ? const SizedBox.shrink()
+                      : row(Icons.link, 'Starts after', a, () => s.tasks.unchain(task.id)),
+                ),
+              for (final f in followers)
+                row(Icons.subdirectory_arrow_right, 'Then', f.task, () => s.tasks.unchain(f.task.id)),
+              Text(
+                'Drop a task onto another one (agenda, backlog, project column) to chain them: '
+                'the second starts automatically when the first is completed.',
+                style: theme.textTheme.bodySmall?.copyWith(color: scheme.outline),
+              ),
             ],
           ),
         );

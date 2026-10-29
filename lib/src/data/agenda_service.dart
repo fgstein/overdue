@@ -3,6 +3,7 @@ import 'dart:async';
 import '../core/local_date.dart';
 import '../domain/agenda.dart';
 import '../domain/models.dart';
+import '../domain/task_chains.dart';
 import 'task_repository.dart';
 
 /// Live agenda: combines the task and occurrence streams for a given day.
@@ -17,12 +18,14 @@ class AgendaService {
     StreamSubscription<List<TaskListItem>>? s1;
     StreamSubscription<List<(TaskListItem, Occurrence)>>? s2;
     StreamSubscription<List<PostponedItem>>? s3;
+    StreamSubscription<List<TaskListItem>>? s4;
     List<TaskListItem>? lastTasks;
     List<(TaskListItem, Occurrence)>? lastOcc;
     List<PostponedItem>? lastPostponed;
+    TaskChains? lastChains;
 
     void emit() {
-      if (lastTasks == null || lastOcc == null || lastPostponed == null) return;
+      if (lastTasks == null || lastOcc == null || lastPostponed == null || lastChains == null) return;
       controller.add(
         AgendaBuilder.build(
           today: today,
@@ -30,6 +33,7 @@ class AgendaService {
           tasks: lastTasks!,
           occurrences: lastOcc!,
           postponed: lastPostponed!,
+          chains: lastChains,
         ),
       );
     }
@@ -52,11 +56,16 @@ class AgendaService {
           lastPostponed = v;
           emit();
         }, onError: controller.addError);
+        s4 = tasks.watchWaitingInChain().listen((v) {
+          lastChains = TaskChains(v);
+          emit();
+        }, onError: controller.addError);
       },
       onCancel: () async {
         await s1?.cancel();
         await s2?.cancel();
         await s3?.cancel();
+        await s4?.cancel();
       },
     );
     return controller.stream;

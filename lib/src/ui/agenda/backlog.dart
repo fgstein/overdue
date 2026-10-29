@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import '../../app/app_services.dart';
 import '../../domain/enums.dart';
 import '../../domain/models.dart';
+import '../../domain/task_chains.dart';
 import '../../domain/task_query.dart';
 import '../bulk_actions.dart';
 import '../editor/quick_add.dart';
 import '../task_actions.dart';
 import '../theme.dart';
 import '../widgets/live_query.dart';
+import '../widgets/task_chain.dart';
 import '../widgets/task_drag.dart';
 
 /// Backlog: open one-time tasks without a date. They stay visible next to
@@ -45,16 +47,33 @@ class Backlog extends StatelessWidget {
     return LiveQuery<List<TaskListItem>>(
       id: 'backlog',
       stream: () => s.tasks.watchQuery(query),
-      builder: (context, items) => DragTarget<TaskDragData>(
-        onWillAcceptWithDetails: (d) => accepts(d.data),
-        onAcceptWithDetails: (d) => s.tasks.rescheduleTasks([d.data.task.id], null),
-        builder: (context, candidates, _) =>
-            _content(context, items ?? const [], hover: candidates.isNotEmpty, loading: items == null),
+      builder: (context, items) => LiveQuery<List<TaskListItem>>(
+        id: 'chain-waiting',
+        stream: s.tasks.watchWaitingInChain,
+        builder: (context, waiting) {
+          // Chained tasks are folded under the task they wait for (here or
+          // in the agenda), never listed on their own.
+          final rows = TaskChains(waiting ?? const [])
+              .fold(items ?? const <TaskListItem>[], (i) => i.task.id)
+              .where((r) => !r.$1.isWaitingInChain)
+              .toList();
+          return DragTarget<TaskDragData>(
+            onWillAcceptWithDetails: (d) => accepts(d.data),
+            onAcceptWithDetails: (d) => s.tasks.rescheduleTasks([d.data.task.id], null),
+            builder: (context, candidates, _) =>
+                _content(context, rows, hover: candidates.isNotEmpty, loading: items == null),
+          );
+        },
       ),
     );
   }
 
-  Widget _content(BuildContext context, List<TaskListItem> items, {required bool hover, required bool loading}) {
+  Widget _content(
+    BuildContext context,
+    List<(TaskListItem, List<ChainLink>)> items, {
+    required bool hover,
+    required bool loading,
+  }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final header = Padding(
@@ -95,7 +114,20 @@ class Backlog extends StatelessWidget {
         style: theme.textTheme.bodySmall?.copyWith(color: scheme.outline),
       ),
     );
-    final tiles = [for (final i in items) BacklogTile(key: ValueKey('b${i.task.id}'), item: i)];
+    final tiles = [
+      for (final (i, chain) in items)
+        if (chain.isEmpty)
+          BacklogTile(key: ValueKey('b${i.task.id}'), item: i)
+        else
+          Column(
+            key: ValueKey('b${i.task.id}'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BacklogTile(item: i),
+              ChainFold(links: chain, color: AppTheme.projectColor(i.projectColor, scheme)),
+            ],
+          ),
+    ];
 
     if (asSection) {
       return Container(
@@ -213,6 +245,12 @@ class BacklogTile extends StatelessWidget {
         ),
       ),
     );
-    return DraggableTask(data: TaskDragData(t), enabled: true, touchLongPress: !s.platform.isDesktop, child: tile);
+    return DraggableTask(
+      data: TaskDragData(t),
+      enabled: true,
+      touchLongPress: !s.platform.isDesktop,
+      // Drop another task onto this one: this one starts after it.
+      child: ChainDropTarget(task: t, child: tile),
+    );
   }
 }

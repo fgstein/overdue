@@ -37,10 +37,13 @@ class TaskRepository {
   static int _startOfDayMs(LocalDate day) => day.atMinute(0).toUtc().millisecondsSinceEpoch;
 
   /// Columns appended to `t.*` for list rows.
-  static const _listColumns = '''
+  static const _listColumns =
+      '''
     t.*, p.name AS p_name, p.color AS p_color, par.title AS parent_title,
     (SELECT COUNT(*) FROM tasks c WHERE c.parent_id = t.id) AS sub_total,
-    (SELECT COUNT(*) FROM tasks c WHERE c.parent_id = t.id AND c.status IN $_closedStatuses) AS sub_done''';
+    (SELECT COUNT(*) FROM tasks c WHERE c.parent_id = t.id AND c.status IN $_closedStatuses) AS sub_done,
+    (SELECT a.title FROM tasks a WHERE a.id = t.after_task_id) AS after_title,
+    (SELECT a.status FROM tasks a WHERE a.id = t.after_task_id) AS after_status''';
   static const _listJoins = '''
     FROM tasks t
     LEFT JOIN projects p ON p.id = t.project_id
@@ -53,6 +56,11 @@ class TaskRepository {
     parentTitle: row.readNullable<String>('parent_title'),
     subtaskCount: row.read<int>('sub_total'),
     subtaskDone: row.read<int>('sub_done'),
+    afterTitle: row.readNullable<String>('after_title'),
+    afterStatus: switch (row.readNullable<int>('after_status')) {
+      null => null,
+      final code => TaskStatus.fromCode(code),
+    },
   );
 
   /// Emits whenever task-related data changes (used to trigger reconciliation
@@ -238,6 +246,28 @@ class TaskRepository {
           );
         }).toList(),
       );
+
+  /// Open tasks chained after a task that is not finished yet (folded under
+  /// it in the agenda, backlog and project columns).
+  Stream<List<TaskListItem>> watchWaitingInChain() => db
+      .customSelect(
+        'SELECT $_listColumns $_listJoins '
+        'WHERE t.after_task_id IS NOT NULL AND t.status NOT IN $_closedStatuses '
+        'AND EXISTS (SELECT 1 FROM tasks a WHERE a.id = t.after_task_id AND a.status NOT IN $_closedStatuses)',
+        readsFrom: {db.tasks, db.projects},
+      )
+      .watch()
+      .map((rows) => rows.map(_listItem).toList());
+
+  /// Tasks chained directly after [id] (any status).
+  Stream<List<TaskListItem>> watchChainedAfter(int id) => db
+      .customSelect(
+        'SELECT $_listColumns $_listJoins WHERE t.after_task_id = ? ORDER BY t.id',
+        variables: [Variable.withInt(id)],
+        readsFrom: {db.tasks, db.projects},
+      )
+      .watch()
+      .map((rows) => rows.map(_listItem).toList());
 
   /// Per-day activity for the mini calendar over [from]..[to] (inclusive):
   /// tasks and occurrences due that day (done or not, cancelled excluded) and
@@ -540,6 +570,7 @@ class TaskRepository {
     }
     if (replaceReminders) await _replaceReminders(id, d.reminders, now);
     if (recurring) await _materializeTask(id);
+    if (status == TaskStatus.completed && old.status != TaskStatus.completed.code) await _startChained(id);
   });
 
   Future<void> _replaceReminders(int taskId, List<Reminder> reminders, int now) async {
@@ -583,6 +614,7 @@ class TaskRepository {
       // Pending snoozes of a closed task are pointless.
       await (db.delete(db.reminders)..where((r) => r.taskId.equals(id) & r.kind.equals(ReminderKind.snooze.code))).go();
     }
+    if (status == TaskStatus.completed && old.status != TaskStatus.completed.code) await _startChained(id);
   });
 
   /// Moves non-recurring tasks to [date], keeping their time of day.
@@ -757,7 +789,110 @@ class TaskRepository {
     updates: {db.tasks},
   );
 
-  Future<void> deleteTask(int id) => (db.delete(db.tasks)..where((t) => t.id.equals(id))).go();
+  Future<void> deleteTask(int id) => db.transaction(() async {
+    // Tasks chained after it no longer wait for anything.
+    await (db.update(db.tasks)..where((t) => t.afterTaskId.equals(id) & t.status.equals(TaskStatus.blocked.code)))
+        .write(TasksCompanion(status: Value(TaskStatus.notStarted.code), updatedAt: Value(_now)));
+    await (db.delete(db.tasks)..where((t) => t.id.equals(id))).go();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Chained tasks
+  // ---------------------------------------------------------------------------
+
+  /// Why [taskId] cannot be chained after [afterId], or null if it can.
+  Future<String?> chainProblem(int taskId, int afterId) async {
+    if (taskId == afterId) return 'A task cannot wait for itself';
+    final rows = await (db.select(db.tasks)..where((t) => t.id.isIn([taskId, afterId]))).get();
+    if (rows.length < 2) return 'Task not found';
+    if (rows.any((r) => r.type == TaskType.recurring.code)) return 'Recurring tasks cannot be chained';
+    final task = rows.firstWhere((r) => r.id == taskId);
+    if (task.status == TaskStatus.completed.code || task.status == TaskStatus.cancelled.code) {
+      return 'This task is already closed';
+    }
+    if (await _isAncestor(taskId, afterId) || await _isAncestor(afterId, taskId)) {
+      return 'A task cannot be chained with its own subtask';
+    }
+    // The new predecessor must not (transitively) wait for the task itself.
+    final cycle = await db
+        .customSelect(
+          '''
+      WITH RECURSIVE chain(id) AS (
+        SELECT after_task_id FROM tasks WHERE id = ?1
+        UNION SELECT t.after_task_id FROM tasks t JOIN chain c ON t.id = c.id WHERE t.after_task_id IS NOT NULL
+      )
+      SELECT 1 FROM chain WHERE id = ?2 LIMIT 1''',
+          variables: [Variable.withInt(afterId), Variable.withInt(taskId)],
+        )
+        .get();
+    if (cycle.isNotEmpty || rows.firstWhere((r) => r.id == afterId).afterTaskId == taskId) {
+      return 'That task already waits for this one';
+    }
+    return null;
+  }
+
+  Future<bool> _isAncestor(int ancestorId, int id) async {
+    final rows = await ancestry(id);
+    return rows.any((t) => t.id == ancestorId && t.id != id);
+  }
+
+  /// Chains [taskId] after [afterId]: it can only start once [afterId] is
+  /// completed, and is started automatically then. While it waits its status
+  /// is Blocked. Throws [ChainException] when the link is not allowed.
+  Future<void> chainAfter(int taskId, int afterId) => db.transaction(() async {
+    final problem = await chainProblem(taskId, afterId);
+    if (problem != null) throw ChainException(problem);
+    final after = await (db.select(db.tasks)..where((t) => t.id.equals(afterId))).getSingle();
+    final waits = after.status != TaskStatus.completed.code && after.status != TaskStatus.cancelled.code;
+    await (db.update(db.tasks)..where((t) => t.id.equals(taskId))).write(
+      TasksCompanion(
+        afterTaskId: Value(afterId),
+        status: waits ? Value(TaskStatus.blocked.code) : const Value.absent(),
+        updatedAt: Value(_now),
+      ),
+    );
+  });
+
+  /// Removes [taskId] from its chain; if it was blocked waiting, it becomes
+  /// Not Started again.
+  Future<void> unchain(int taskId) => db.transaction(() async {
+    final old = await (db.select(db.tasks)..where((t) => t.id.equals(taskId))).getSingleOrNull();
+    if (old == null || old.afterTaskId == null) return;
+    await (db.update(db.tasks)..where((t) => t.id.equals(taskId))).write(
+      TasksCompanion(
+        afterTaskId: const Value(null),
+        status: old.status == TaskStatus.blocked.code ? Value(TaskStatus.notStarted.code) : const Value.absent(),
+        updatedAt: Value(_now),
+      ),
+    );
+  });
+
+  /// [id] was just completed: the tasks chained after it start (In
+  /// Progress). One-time tasks without a date, or dated in the past, are
+  /// planned for today so they show up on the agenda.
+  Future<void> _startChained(int id) async {
+    final next =
+        await (db.select(db.tasks)..where(
+              (t) =>
+                  t.afterTaskId.equals(id) &
+                  t.status.isIn([TaskStatus.notStarted.code, TaskStatus.blocked.code, TaskStatus.waiting.code]),
+            ))
+            .get();
+    if (next.isEmpty) return;
+    final now = _now;
+    final today = _today.epochDay;
+    for (final n in next) {
+      final plan = n.type == TaskType.oneTime.code && (n.dueDate == null || n.dueDate! < today);
+      await (db.update(db.tasks)..where((t) => t.id.equals(n.id))).write(
+        TasksCompanion(
+          status: Value(TaskStatus.inProgress.code),
+          dueDate: plan ? Value(today) : const Value.absent(),
+          dayOrder: plan ? const Value(0) : const Value.absent(),
+          updatedAt: Value(now),
+        ),
+      );
+    }
+  }
 
   Future<int> addSubtask(int parentId, String title) => createTask(TaskDraft(title: title, parentId: parentId));
 
@@ -957,4 +1092,13 @@ class TaskRepository {
     }
     return out;
   }
+}
+
+/// A chaining request that is not allowed (cycle, recurring task…).
+class ChainException implements Exception {
+  const ChainException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
 }
