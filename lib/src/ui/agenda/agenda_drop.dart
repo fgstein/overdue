@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import '../../app/app_services.dart';
 import '../../core/local_date.dart';
 import '../../domain/agenda.dart';
+import '../widgets/task_chain.dart';
 import '../widgets/task_drag.dart';
 
 /// Drag and drop inside the agenda (desktop):
 /// * within the same day/section: reorder (remembered as a manual order);
 /// * onto another day (today or an upcoming day): change the due date and
-///   insert at the drop position.
+///   insert at the drop position;
+/// * onto the middle of another task: chain them (that task then waits for
+///   the dragged one and is folded under it).
 ///
 /// Recurring occurrences keep their date (the rule decides), so they can
 /// only be reordered within their own section. Ongoing / Recurring / Overdue
@@ -49,19 +52,26 @@ abstract final class AgendaDrop {
   }
 }
 
+enum _Zone { before, after, chain }
+
 /// Wraps an agenda row: shows an insertion line while a task is dragged over
-/// it (above or below depending on the hovered half) and drops it there.
+/// its top or bottom edge and drops it there; over the middle of a task row,
+/// outlines it and chains the two tasks.
 class AgendaDropSlot extends StatefulWidget {
   const AgendaDropSlot({
     super.key,
     required this.section,
     required this.today,
     required this.child,
+    this.entry,
     this.thisKey,
     this.nextKey,
   });
   final AgendaSection section;
   final LocalDate today;
+
+  /// Entry of this row (null for a header).
+  final AgendaEntry? entry;
 
   /// Key of the entry in this row (null for a header: drops at the top).
   final String? thisKey;
@@ -75,14 +85,20 @@ class AgendaDropSlot extends StatefulWidget {
 }
 
 class _AgendaDropSlotState extends State<AgendaDropSlot> {
-  bool _after = false;
+  _Zone _zone = _Zone.before;
+
+  /// Task of this row that a dragged task can be chained into, if any.
+  bool _chainable(TaskDragData d) {
+    final e = widget.entry;
+    return e != null && !e.isPostponed && !e.isOccurrence && !e.isDone && TaskChainDrop.canChain(d, e.task);
+  }
 
   String? get _beforeKey {
     if (widget.thisKey == null) {
       // Header: insert at the top of the section.
       return widget.section.entries.isEmpty ? null : widget.section.entries.first.key;
     }
-    return _after ? widget.nextKey : widget.thisKey;
+    return _zone == _Zone.after ? widget.nextKey : widget.thisKey;
   }
 
   @override
@@ -93,27 +109,39 @@ class _AgendaDropSlotState extends State<AgendaDropSlot> {
       decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, borderRadius: BorderRadius.circular(2)),
     );
     return DragTarget<TaskDragData>(
-      onWillAcceptWithDetails: (d) => AgendaDrop.canDrop(widget.section, d.data, widget.today),
+      onWillAcceptWithDetails: (d) => AgendaDrop.canDrop(widget.section, d.data, widget.today) || _chainable(d.data),
       onMove: (d) {
         final box = context.findRenderObject() as RenderBox?;
         if (box == null || widget.thisKey == null) return;
-        final after = box.globalToLocal(d.offset).dy > box.size.height / 2;
-        if (after != _after) setState(() => _after = after);
+        final h = box.size.height, y = box.globalToLocal(d.offset).dy;
+        final zone = _chainable(d.data) && y > h * 0.3 && y < h * 0.7
+            ? _Zone.chain
+            : (y > h / 2 ? _Zone.after : _Zone.before);
+        if (zone != _zone) setState(() => _zone = zone);
       },
-      onAcceptWithDetails: (d) => AgendaDrop.drop(app, widget.section, d.data, beforeKey: _beforeKey),
-      builder: (context, candidates, _) => Stack(
-        children: [
-          widget.child,
-          if (candidates.isNotEmpty)
-            Positioned(
-              left: 12,
-              right: 12,
-              top: _after && widget.thisKey != null ? null : 0,
-              bottom: _after && widget.thisKey != null ? 0 : null,
-              child: line,
-            ),
-        ],
-      ),
+      onAcceptWithDetails: (d) {
+        if (_zone == _Zone.chain && _chainable(d.data)) {
+          TaskChainDrop.chain(context, d.data, widget.entry!.task);
+        } else if (AgendaDrop.canDrop(widget.section, d.data, widget.today)) {
+          AgendaDrop.drop(app, widget.section, d.data, beforeKey: _beforeKey);
+        }
+      },
+      builder: (context, candidates, _) {
+        final hovering = candidates.isNotEmpty;
+        final chaining = hovering && _zone == _Zone.chain && widget.thisKey != null;
+        final after = _zone == _Zone.after && widget.thisKey != null;
+        final dropLine =
+            hovering &&
+            !chaining &&
+            candidates.first != null &&
+            AgendaDrop.canDrop(widget.section, candidates.first!, widget.today);
+        return Stack(
+          children: [
+            TaskChainDrop.highlight(context, widget.child, active: chaining),
+            if (dropLine) Positioned(left: 12, right: 12, top: after ? null : 0, bottom: after ? 0 : null, child: line),
+          ],
+        );
+      },
     );
   }
 }

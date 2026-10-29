@@ -474,6 +474,7 @@ class _OverlayList extends StatelessWidget {
             ),
           ),
         );
+        if (e.chain.isNotEmpty) rows.add(_chainRow(context, e));
       }
     }
 
@@ -508,6 +509,32 @@ class _OverlayList extends StatelessWidget {
       );
     }
     return ListView(padding: const EdgeInsets.only(bottom: 8), children: rows);
+  }
+
+  /// Tasks chained after [e], folded under its line: "⛓ B → C".
+  Widget _chainRow(BuildContext context, AgendaEntry e) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return InkWell(
+      onTap: () => onOpen(e.chain.first.item.task.id),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 0, 10, 3),
+        child: Row(
+          children: [
+            Icon(Icons.link, size: 12, color: scheme.tertiary),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                e.chain.map((l) => l.item.task.title).join(' → '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Postponed task: struck through in red on the day it left.

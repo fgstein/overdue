@@ -63,6 +63,40 @@ void main() {
     await tester.runAsync(() => services.db.close());
   });
 
+  testWidgets('dropping a backlog task onto another chains them; the second is folded under the first', (tester) async {
+    await boot(tester);
+    final a = (await tester.runAsync(() => services.tasks.createTask(TaskDraft(title: 'Draft the contract'))))!;
+    final b = (await tester.runAsync(() => services.tasks.createTask(TaskDraft(title: 'Sign the contract'))))!;
+    await settle(tester);
+    expect(find.text('Sign the contract'), findsOneWidget);
+
+    // Touch: long press, then drag A onto B.
+    final from = tester.getCenter(find.text('Draft the contract'));
+    final to = tester.getCenter(find.text('Sign the contract'));
+    final g = await tester.startGesture(from);
+    await tester.pump(const Duration(milliseconds: 700));
+    for (var i = 1; i <= 5; i++) {
+      await g.moveTo(Offset.lerp(from, to, i / 5)!);
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await g.up();
+    await settle(tester);
+
+    final blocked = await tester.runAsync(() => services.tasks.getTask(b));
+    expect(blocked!.afterTaskId, a);
+    expect(blocked.status, TaskStatus.blocked);
+    expect(find.text('Then'), findsOneWidget, reason: 'B is folded under A');
+
+    // Completing A starts B (today, in progress) on the agenda.
+    await tester.runAsync(() => services.tasks.setStatus(a, TaskStatus.completed));
+    await settle(tester);
+    final started = await tester.runAsync(() => services.tasks.getTask(b));
+    expect(started!.status, TaskStatus.inProgress);
+    expect(started.dueDate, LocalDate(2026, 10, 4));
+    expect(find.text('Then'), findsNothing);
+    await tester.runAsync(() => services.db.close());
+  });
+
   testWidgets('"More options" without a title opens the full editor', (tester) async {
     await boot(tester);
     await tester.tap(find.byTooltip('New task (Ctrl+N)').first);

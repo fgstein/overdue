@@ -511,6 +511,16 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _afterTaskIdMeta = const VerificationMeta('afterTaskId');
+  @override
+  late final GeneratedColumn<int> afterTaskId = GeneratedColumn<int>(
+    'after_task_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES tasks (id) ON DELETE SET NULL'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -531,6 +541,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     completedAt,
     archivedAt,
     dayOrder,
+    afterTaskId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -607,6 +618,9 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     if (data.containsKey('day_order')) {
       context.handle(_dayOrderMeta, dayOrder.isAcceptableOrUnknown(data['day_order']!, _dayOrderMeta));
     }
+    if (data.containsKey('after_task_id')) {
+      context.handle(_afterTaskIdMeta, afterTaskId.isAcceptableOrUnknown(data['after_task_id']!, _afterTaskIdMeta));
+    }
     return context;
   }
 
@@ -637,6 +651,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
       completedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}completed_at']),
       archivedAt: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}archived_at']),
       dayOrder: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}day_order'])!,
+      afterTaskId: attachedDatabase.typeMapping.read(DriftSqlType.int, data['${effectivePrefix}after_task_id']),
     );
   }
 
@@ -675,6 +690,10 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   /// Manual order within an agenda day (drag and drop); 0 = not ordered,
   /// which sorts after ordered tasks by priority/time. Added in schema v3.
   final int dayOrder;
+
+  /// Chained task: this task can only start once [afterTaskId] is completed
+  /// (it is then started automatically). Added in schema v5.
+  final int? afterTaskId;
   const TaskRow({
     required this.id,
     this.parentId,
@@ -694,6 +713,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     this.completedAt,
     this.archivedAt,
     required this.dayOrder,
+    this.afterTaskId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -732,6 +752,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       map['archived_at'] = Variable<int>(archivedAt);
     }
     map['day_order'] = Variable<int>(dayOrder);
+    if (!nullToAbsent || afterTaskId != null) {
+      map['after_task_id'] = Variable<int>(afterTaskId);
+    }
     return map;
   }
 
@@ -757,6 +780,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       completedAt: completedAt == null && nullToAbsent ? const Value.absent() : Value(completedAt),
       archivedAt: archivedAt == null && nullToAbsent ? const Value.absent() : Value(archivedAt),
       dayOrder: Value(dayOrder),
+      afterTaskId: afterTaskId == null && nullToAbsent ? const Value.absent() : Value(afterTaskId),
     );
   }
 
@@ -781,6 +805,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       completedAt: serializer.fromJson<int?>(json['completedAt']),
       archivedAt: serializer.fromJson<int?>(json['archivedAt']),
       dayOrder: serializer.fromJson<int>(json['dayOrder']),
+      afterTaskId: serializer.fromJson<int?>(json['afterTaskId']),
     );
   }
   @override
@@ -805,6 +830,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       'completedAt': serializer.toJson<int?>(completedAt),
       'archivedAt': serializer.toJson<int?>(archivedAt),
       'dayOrder': serializer.toJson<int>(dayOrder),
+      'afterTaskId': serializer.toJson<int?>(afterTaskId),
     };
   }
 
@@ -827,6 +853,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     Value<int?> completedAt = const Value.absent(),
     Value<int?> archivedAt = const Value.absent(),
     int? dayOrder,
+    Value<int?> afterTaskId = const Value.absent(),
   }) => TaskRow(
     id: id ?? this.id,
     parentId: parentId.present ? parentId.value : this.parentId,
@@ -848,6 +875,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     dayOrder: dayOrder ?? this.dayOrder,
+    afterTaskId: afterTaskId.present ? afterTaskId.value : this.afterTaskId,
   );
   TaskRow copyWithCompanion(TasksCompanion data) {
     return TaskRow(
@@ -871,6 +899,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       completedAt: data.completedAt.present ? data.completedAt.value : this.completedAt,
       archivedAt: data.archivedAt.present ? data.archivedAt.value : this.archivedAt,
       dayOrder: data.dayOrder.present ? data.dayOrder.value : this.dayOrder,
+      afterTaskId: data.afterTaskId.present ? data.afterTaskId.value : this.afterTaskId,
     );
   }
 
@@ -894,7 +923,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('completedAt: $completedAt, ')
           ..write('archivedAt: $archivedAt, ')
-          ..write('dayOrder: $dayOrder')
+          ..write('dayOrder: $dayOrder, ')
+          ..write('afterTaskId: $afterTaskId')
           ..write(')'))
         .toString();
   }
@@ -919,6 +949,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     completedAt,
     archivedAt,
     dayOrder,
+    afterTaskId,
   );
   @override
   bool operator ==(Object other) =>
@@ -941,7 +972,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           other.updatedAt == this.updatedAt &&
           other.completedAt == this.completedAt &&
           other.archivedAt == this.archivedAt &&
-          other.dayOrder == this.dayOrder);
+          other.dayOrder == this.dayOrder &&
+          other.afterTaskId == this.afterTaskId);
 }
 
 class TasksCompanion extends UpdateCompanion<TaskRow> {
@@ -963,6 +995,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   final Value<int?> completedAt;
   final Value<int?> archivedAt;
   final Value<int> dayOrder;
+  final Value<int?> afterTaskId;
   const TasksCompanion({
     this.id = const Value.absent(),
     this.parentId = const Value.absent(),
@@ -982,6 +1015,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.completedAt = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.dayOrder = const Value.absent(),
+    this.afterTaskId = const Value.absent(),
   });
   TasksCompanion.insert({
     this.id = const Value.absent(),
@@ -1002,6 +1036,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.completedAt = const Value.absent(),
     this.archivedAt = const Value.absent(),
     this.dayOrder = const Value.absent(),
+    this.afterTaskId = const Value.absent(),
   }) : title = Value(title),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
@@ -1024,6 +1059,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Expression<int>? completedAt,
     Expression<int>? archivedAt,
     Expression<int>? dayOrder,
+    Expression<int>? afterTaskId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1044,6 +1080,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       if (completedAt != null) 'completed_at': completedAt,
       if (archivedAt != null) 'archived_at': archivedAt,
       if (dayOrder != null) 'day_order': dayOrder,
+      if (afterTaskId != null) 'after_task_id': afterTaskId,
     });
   }
 
@@ -1066,6 +1103,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Value<int?>? completedAt,
     Value<int?>? archivedAt,
     Value<int>? dayOrder,
+    Value<int?>? afterTaskId,
   }) {
     return TasksCompanion(
       id: id ?? this.id,
@@ -1086,6 +1124,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       completedAt: completedAt ?? this.completedAt,
       archivedAt: archivedAt ?? this.archivedAt,
       dayOrder: dayOrder ?? this.dayOrder,
+      afterTaskId: afterTaskId ?? this.afterTaskId,
     );
   }
 
@@ -1146,6 +1185,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     if (dayOrder.present) {
       map['day_order'] = Variable<int>(dayOrder.value);
     }
+    if (afterTaskId.present) {
+      map['after_task_id'] = Variable<int>(afterTaskId.value);
+    }
     return map;
   }
 
@@ -1169,7 +1211,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('completedAt: $completedAt, ')
           ..write('archivedAt: $archivedAt, ')
-          ..write('dayOrder: $dayOrder')
+          ..write('dayOrder: $dayOrder, ')
+          ..write('afterTaskId: $afterTaskId')
           ..write(')'))
         .toString();
   }
@@ -3249,6 +3292,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_tasks_completed',
     'CREATE INDEX idx_tasks_completed ON tasks (completed_at)',
   );
+  late final Index idxTasksAfter = Index('idx_tasks_after', 'CREATE INDEX idx_tasks_after ON tasks (after_task_id)');
   late final Index idxOccStatusDate = Index(
     'idx_occ_status_date',
     'CREATE INDEX idx_occ_status_date ON occurrences (status, date)',
@@ -3290,6 +3334,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxTasksTypeStatus,
     idxTasksUpdated,
     idxTasksCompleted,
+    idxTasksAfter,
     idxOccStatusDate,
     idxOccTaskDate,
     idxRemindersTask,
@@ -3305,6 +3350,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName('projects', limitUpdateKind: UpdateKind.delete),
+      result: [TableUpdate('tasks', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName('tasks', limitUpdateKind: UpdateKind.delete),
       result: [TableUpdate('tasks', kind: UpdateKind.update)],
     ),
     WritePropagation(
@@ -3578,6 +3627,7 @@ typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
   Value<int?> completedAt,
   Value<int?> archivedAt,
   Value<int> dayOrder,
+  Value<int?> afterTaskId,
 });
 typedef $$TasksTableUpdateCompanionBuilder = TasksCompanion Function({
   Value<int> id,
@@ -3598,6 +3648,7 @@ typedef $$TasksTableUpdateCompanionBuilder = TasksCompanion Function({
   Value<int?> completedAt,
   Value<int?> archivedAt,
   Value<int> dayOrder,
+  Value<int?> afterTaskId,
 });
 
 final class $$TasksTableReferences extends BaseReferences<_$AppDatabase, $TasksTable, TaskRow> {
@@ -3621,6 +3672,17 @@ final class $$TasksTableReferences extends BaseReferences<_$AppDatabase, $TasksT
     if ($_column == null) return null;
     final manager = $$ProjectsTableTableManager($_db, $_db.projects).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $TasksTable _afterTaskIdTable(_$AppDatabase db) => db.tasks.createAlias('tasks__after_task_id__tasks__id');
+
+  $$TasksTableProcessedTableManager? get afterTaskId {
+    final $_column = $_itemColumn<int>('after_task_id');
+    if ($_column == null) return null;
+    final manager = $$TasksTableTableManager($_db, $_db.tasks).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_afterTaskIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
   }
@@ -3747,6 +3809,24 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
           $$ProjectsTableFilterComposer(
             $db: $db,
             $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TasksTableFilterComposer get afterTaskId {
+    final $$TasksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.afterTaskId,
+      referencedTable: $db.tasks,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$TasksTableFilterComposer(
+            $db: $db,
+            $table: $db.tasks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
@@ -3900,6 +3980,24 @@ class $$TasksTableOrderingComposer extends Composer<_$AppDatabase, $TasksTable> 
     );
     return composer;
   }
+
+  $$TasksTableOrderingComposer get afterTaskId {
+    final $$TasksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.afterTaskId,
+      referencedTable: $db.tasks,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$TasksTableOrderingComposer(
+            $db: $db,
+            $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$TasksTableAnnotationComposer extends Composer<_$AppDatabase, $TasksTable> {
@@ -3972,6 +4070,24 @@ class $$TasksTableAnnotationComposer extends Composer<_$AppDatabase, $TasksTable
           $$ProjectsTableAnnotationComposer(
             $db: $db,
             $table: $db.projects,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TasksTableAnnotationComposer get afterTaskId {
+    final $$TasksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.afterTaskId,
+      referencedTable: $db.tasks,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$TasksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.tasks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
@@ -4053,6 +4169,7 @@ class $$TasksTableTableManager
           PrefetchHooks Function({
             bool parentId,
             bool projectId,
+            bool afterTaskId,
             bool occurrencesRefs,
             bool remindersRefs,
             bool postponementsRefs,
@@ -4086,6 +4203,7 @@ class $$TasksTableTableManager
                 Value<int?> completedAt = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int> dayOrder = const Value.absent(),
+                Value<int?> afterTaskId = const Value.absent(),
               }) => TasksCompanion(
                 id: id,
                 parentId: parentId,
@@ -4105,6 +4223,7 @@ class $$TasksTableTableManager
                 completedAt: completedAt,
                 archivedAt: archivedAt,
                 dayOrder: dayOrder,
+                afterTaskId: afterTaskId,
               ),
           createCompanionCallback:
               ({
@@ -4126,6 +4245,7 @@ class $$TasksTableTableManager
                 Value<int?> completedAt = const Value.absent(),
                 Value<int?> archivedAt = const Value.absent(),
                 Value<int> dayOrder = const Value.absent(),
+                Value<int?> afterTaskId = const Value.absent(),
               }) => TasksCompanion.insert(
                 id: id,
                 parentId: parentId,
@@ -4145,6 +4265,7 @@ class $$TasksTableTableManager
                 completedAt: completedAt,
                 archivedAt: archivedAt,
                 dayOrder: dayOrder,
+                afterTaskId: afterTaskId,
               ),
           withReferenceMapper: (p0) =>
               p0.map((e) => (e.readTable<$TasksTable, TaskRow>(table), $$TasksTableReferences(db, table, e))).toList(),
@@ -4152,6 +4273,7 @@ class $$TasksTableTableManager
               ({
                 parentId = false,
                 projectId = false,
+                afterTaskId = false,
                 occurrencesRefs = false,
                 remindersRefs = false,
                 postponementsRefs = false,
@@ -4193,6 +4315,14 @@ class $$TasksTableTableManager
                             currentColumn: table.projectId,
                             referencedTable: $$TasksTableReferences._projectIdTable(db),
                             referencedColumn: $$TasksTableReferences._projectIdTable(db).id,
+                          ) as T;
+                        }
+                        if (afterTaskId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.afterTaskId,
+                            referencedTable: $$TasksTableReferences._afterTaskIdTable(db),
+                            referencedColumn: $$TasksTableReferences._afterTaskIdTable(db).id,
                           ) as T;
                         }
 
@@ -4250,6 +4380,7 @@ typedef $$TasksTableProcessedTableManager =
       PrefetchHooks Function({
         bool parentId,
         bool projectId,
+        bool afterTaskId,
         bool occurrencesRefs,
         bool remindersRefs,
         bool postponementsRefs,

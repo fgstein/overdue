@@ -26,6 +26,7 @@ class Projects extends Table {
 @TableIndex(name: 'idx_tasks_type_status', columns: {#type, #status})
 @TableIndex(name: 'idx_tasks_updated', columns: {#updatedAt})
 @TableIndex(name: 'idx_tasks_completed', columns: {#completedAt})
+@TableIndex(name: 'idx_tasks_after', columns: {#afterTaskId})
 class Tasks extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get parentId => integer().nullable().references(Tasks, #id, onDelete: KeyAction.cascade)();
@@ -55,6 +56,10 @@ class Tasks extends Table {
   /// Manual order within an agenda day (drag and drop); 0 = not ordered,
   /// which sorts after ordered tasks by priority/time. Added in schema v3.
   IntColumn get dayOrder => integer().withDefault(const Constant(0))();
+
+  /// Chained task: this task can only start once [afterTaskId] is completed
+  /// (it is then started automatically). Added in schema v5.
+  IntColumn get afterTaskId => integer().nullable().references(Tasks, #id, onDelete: KeyAction.setNull)();
 }
 
 /// Materialised occurrences of a recurring task. Only a bounded window is

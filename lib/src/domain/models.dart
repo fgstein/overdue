@@ -34,6 +34,7 @@ class Task {
     this.recurrence,
     this.position = 0,
     this.dayOrder = 0,
+    this.afterTaskId,
     required this.createdAt,
     required this.updatedAt,
     this.completedAt,
@@ -58,6 +59,9 @@ class Task {
 
   /// Manual order within an agenda day (0 = none).
   final int dayOrder;
+
+  /// Chained task: starts once this task is completed.
+  final int? afterTaskId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? completedAt;
@@ -205,6 +209,8 @@ class TaskListItem {
     this.subtaskCount = 0,
     this.subtaskDone = 0,
     this.parentTitle,
+    this.afterTitle,
+    this.afterStatus,
   });
   final Task task;
   final String? projectName;
@@ -212,6 +218,22 @@ class TaskListItem {
   final int subtaskCount;
   final int subtaskDone;
   final String? parentTitle;
+
+  /// Title and status of the task this one is chained after, if any.
+  final String? afterTitle;
+  final TaskStatus? afterStatus;
+
+  /// Chained after a task that is not finished yet: cannot start, and is
+  /// shown folded under that task.
+  bool get isWaitingInChain => task.afterTaskId != null && afterStatus != null && afterStatus!.isOpen;
+}
+
+/// A chained task shown folded under the task it waits for; [depth] is 1
+/// for a direct successor, 2 for the next one, etc.
+class ChainLink {
+  const ChainLink(this.item, this.depth);
+  final TaskListItem item;
+  final int depth;
 }
 
 DateTime? millisToLocal(int? v) => _ms(v);

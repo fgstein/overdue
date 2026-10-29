@@ -77,6 +77,7 @@ class TaskTile extends StatelessWidget {
         _Meta(icon: Icons.repeat, text: task.recurrence!.describe(), color: scheme.outline),
       if (task.type == TaskType.ongoing && date == null)
         _Meta(icon: Icons.all_inclusive, text: 'Ongoing', color: scheme.outline),
+      if (item.isWaitingInChain) _Meta(icon: Icons.link, text: 'After ${item.afterTitle}', color: scheme.tertiary),
       if (missedCount > 0) _Meta(icon: Icons.history, text: '+$missedCount missed', color: scheme.error),
       if (status != TaskStatus.notStarted && !closed)
         _Meta(icon: AppTheme.statusIcon(status), text: status.label, color: AppTheme.statusColor(status, scheme)),

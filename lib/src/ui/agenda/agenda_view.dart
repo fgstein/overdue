@@ -10,6 +10,7 @@ import '../../domain/models.dart';
 import '../formatting.dart';
 import '../task_actions.dart';
 import '../theme.dart';
+import '../widgets/task_chain.dart';
 import '../widgets/task_tile.dart';
 
 /// Subscribes to the live agenda for the current day and upcoming setting.
@@ -143,35 +144,69 @@ List<AgendaRow> flattenAgenda(Agenda a, {required ColorScheme scheme, bool overd
 }
 
 class AgendaEntryTile extends StatelessWidget {
-  const AgendaEntryTile({super.key, required this.entry, required this.today, this.selected, this.onSelect});
+  const AgendaEntryTile({
+    super.key,
+    required this.entry,
+    required this.today,
+    this.selected,
+    this.onSelect,
+    this.showChain = true,
+  });
   final AgendaEntry entry;
   final LocalDate today;
   final bool? selected;
   final VoidCallback? onSelect;
 
-  @override
-  Widget build(BuildContext context) => entry.isPostponed
-      ? PostponedTile(
-          postponement: entry.postponement!,
-          today: today,
-          onRemove: () => AppScope.of(context).tasks.archivePostponement(entry.postponement!.id),
-        )
-      : ExpandableTaskTile(
-          item: entry.item,
-          occurrence: entry.occurrence,
-          today: today,
-          missedCount: entry.missedCount,
-          // Done today: stays visible until tomorrow, unless removed now.
-          onRemove: entry.isDone
-              ? () {
-                  final tasks = AppScope.of(context).tasks;
-                  final occ = entry.occurrence;
-                  occ != null ? tasks.archiveOccurrence(entry.task.id, occ.date) : tasks.archiveTask(entry.task.id);
-                }
-              : null,
-          selected: selected,
-          onSelect: onSelect,
+  /// Shows the chained tasks folded under the row (callers may place
+  /// [chainFold] themselves, e.g. outside a drop target).
+  final bool showChain;
+
+  /// Chained tasks waiting for [entry], folded right under its row.
+  static Widget chainFold(BuildContext context, AgendaEntry entry, {bool selecting = false}) => entry.chain.isEmpty
+      ? const SizedBox.shrink()
+      : ChainFold(
+          links: entry.chain,
+          color: AppTheme.projectColor(entry.item.projectColor, Theme.of(context).colorScheme),
+          indent: selecting ? 40 : 0,
         );
+
+  @override
+  Widget build(BuildContext context) {
+    if (entry.isPostponed) {
+      return PostponedTile(
+        postponement: entry.postponement!,
+        today: today,
+        onRemove: () => AppScope.of(context).tasks.archivePostponement(entry.postponement!.id),
+      );
+    }
+    final tile = _tile(context);
+    if (!showChain || entry.chain.isEmpty) return tile;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        tile,
+        chainFold(context, entry, selecting: selected != null),
+      ],
+    );
+  }
+
+  Widget _tile(BuildContext context) => ExpandableTaskTile(
+    item: entry.item,
+    occurrence: entry.occurrence,
+    today: today,
+    missedCount: entry.missedCount,
+    // Done today: stays visible until tomorrow, unless removed now.
+    onRemove: entry.isDone
+        ? () {
+            final tasks = AppScope.of(context).tasks;
+            final occ = entry.occurrence;
+            occ != null ? tasks.archiveOccurrence(entry.task.id, occ.date) : tasks.archiveTask(entry.task.id);
+          }
+        : null,
+    selected: selected,
+    onSelect: onSelect,
+  );
 }
 
 /// Trace of a task postponed away from this day: struck through in red,

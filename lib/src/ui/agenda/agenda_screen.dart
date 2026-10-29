@@ -310,16 +310,25 @@ class _AgendaScreenState extends State<AgendaScreen> {
               h.section == null
                   ? _header(context, h, agenda)
                   : AgendaDropSlot(section: h.section!, today: today, child: _header(context, h, agenda)),
-            AgendaEntryRow e => _dropSlot(
-              e,
-              today,
-              AgendaEntryTile(
-                key: ValueKey(e.entry.key),
-                entry: e.entry,
-                today: today,
-                selected: _selecting ? _selected.contains(e.entry.key) : null,
-                onSelect: () => _toggle(e.entry),
-              ),
+            AgendaEntryRow e => Column(
+              key: ValueKey(e.entry.key),
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _dropSlot(
+                  e,
+                  today,
+                  AgendaEntryTile(
+                    entry: e.entry,
+                    today: today,
+                    selected: _selecting ? _selected.contains(e.entry.key) : null,
+                    onSelect: () => _toggle(e.entry),
+                    showChain: false,
+                  ),
+                ),
+                // Chained tasks stay attached under the task they wait for.
+                AgendaEntryTile.chainFold(context, e.entry, selecting: _selecting),
+              ],
             ),
           },
         ),
@@ -385,6 +394,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
     return AgendaDropSlot(
       section: e.section,
       today: today,
+      entry: e.entry,
       thisKey: e.entry.key,
       nextKey: i >= 0 && i + 1 < entries.length ? entries[i + 1].key : null,
       child: tile,

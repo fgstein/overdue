@@ -18,6 +18,7 @@ A fast, fully offline task manager for **Windows, Ubuntu/Linux and Android**, bu
 | Statuses | Not Started, In Progress, Completed, Suspended, Waiting, Blocked, Cancelled. Completed/cancelled work is kept as history. |
 | Priorities | Low, Normal, High, Urgent. |
 | Subtasks | Any task can have subtasks with their own status, priority, due date and reminders; drag to reorder. |
+| Chained tasks | Drop a task A onto a task B (agenda: the middle of the row; backlog; project columns) and B starts after A: it is *Blocked* while A is open and shows up folded and attached under A (“🔗 Then B → C”, click to unfold, open or unlink). When A is completed, B starts by itself (*In Progress*, planned for today if it had no date or a past one). Chains can go on (A → B → C); cycles, recurring tasks and parent/subtask links are refused. *Remove from the chain* in the actions or the editor. |
 | Recurrence | Daily, every N days, weekly, selected weekdays, every N weeks, monthly on a day (or last day), n-th weekday of the month, every N months, yearly; optional end date or count. A recurring task stays one task and materialises individual **occurrences** that are completed independently. |
 | Reminders | Several per task: at a date/time, relative to the due time (e.g. 7 days / 2 hours before), or repeating on their own schedule (e.g. every day at 19:00, also without a due date). Notifications offer **Open**, **Complete** and **Snooze**. |
 | Agenda | *Today* (urgent, due today, ongoing, recurring), *Overdue*, and optional *Upcoming* days (none / tomorrow / 3 / 7 / 14 / 30). Complete, change status/priority, snooze and expand subtasks inline. Completed work stays visible (green) for the rest of the day and disappears the next day; remove it earlier with its ×. Unfinished work is never dropped: it moves to *Overdue*. Postpone a task with its ↷ button (tomorrow, next Monday, a date or the backlog) or by dragging it onto another day; it leaves a red struck-through trace ("Postponed to Thu") on the day it left until the end of the day, and in the history. |
@@ -45,7 +46,7 @@ Requires Flutter 3.47+ (Dart 3.13+).
 
 ```sh
 flutter pub get
-flutter test                      # 135 tests: domain, database, reminders, migrations, UI, privacy
+flutter test                      # 148 tests: domain, database, reminders, migrations, UI, privacy
 flutter build linux --release     # Ubuntu: needs clang, cmake, ninja, libgtk-3-dev
 flutter build windows --release   # on Windows with Visual Studio (Desktop C++)
 flutter build apk --release       # Android SDK + NDK
