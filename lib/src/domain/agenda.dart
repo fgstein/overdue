@@ -59,6 +59,37 @@ class AgendaEntry {
   bool get isOpen => !isDone && !isPostponed;
 }
 
+/// Traces of several tasks postponed away from the same [day]: shown as a
+/// single "Postponed tasks ×N" line that unfolds on demand.
+class PostponedGroup {
+  const PostponedGroup(this.day, this.entries);
+  final LocalDate day;
+  final List<AgendaEntry> entries;
+
+  /// Groups postponed traces per original day when there are at least two
+  /// on that day; the result holds [AgendaEntry] and [PostponedGroup] items,
+  /// each group where its first trace was.
+  static List<Object> group(List<AgendaEntry> entries) {
+    final byDay = <int, List<AgendaEntry>>{};
+    for (final e in entries.where((e) => e.isPostponed)) {
+      byDay.putIfAbsent(e.postponement!.from.epochDay, () => []).add(e);
+    }
+    if (byDay.values.every((l) => l.length < 2)) return entries;
+    final out = <Object>[];
+    final placed = <int>{};
+    for (final e in entries) {
+      final day = e.postponement?.from.epochDay;
+      final same = day == null ? null : byDay[day]!;
+      if (same == null || same.length < 2) {
+        out.add(e);
+      } else if (placed.add(day!)) {
+        out.add(PostponedGroup(e.postponement!.from, same));
+      }
+    }
+    return out;
+  }
+}
+
 class AgendaSection {
   const AgendaSection(this.kind, this.entries, {this.date});
   final AgendaSectionKind kind;

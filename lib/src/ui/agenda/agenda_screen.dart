@@ -32,6 +32,11 @@ class AgendaScreen extends StatefulWidget {
 class _AgendaScreenState extends State<AgendaScreen> {
   bool _overdueCollapsed = false;
 
+  /// Days (epoch days) whose postponed tasks are unfolded, in the agenda and
+  /// in the history.
+  final _expandedPostponed = <int>{};
+  final _expandedHistory = <int>{};
+
   /// Weeks shown by the mini calendar, relative to the current ones.
   final _weekOffset = ValueNotifier<int>(0);
 
@@ -295,7 +300,12 @@ class _AgendaScreenState extends State<AgendaScreen> {
   Widget _body(BuildContext context, Agenda agenda, {required bool backlogInList}) {
     final scheme = Theme.of(context).colorScheme;
     final s = AppScope.of(context);
-    final rows = flattenAgenda(agenda, scheme: scheme, overdueCollapsed: _overdueCollapsed);
+    final rows = flattenAgenda(
+      agenda,
+      scheme: scheme,
+      overdueCollapsed: _overdueCollapsed,
+      expandedPostponed: _expandedPostponed,
+    );
     final today = agenda.today;
     final pastFrom = today.addDays(-_pastDays);
 
@@ -310,6 +320,22 @@ class _AgendaScreenState extends State<AgendaScreen> {
               h.section == null
                   ? _header(context, h, agenda)
                   : AgendaDropSlot(section: h.section!, today: today, child: _header(context, h, agenda)),
+            AgendaPostponedGroupRow g => PostponedGroupTile(
+              key: ValueKey('pg${g.group.day.epochDay}'),
+              count: g.group.entries.length,
+              expanded: g.expanded,
+              day: g.group.day < today ? Fmt.longDate(g.group.day) : null,
+              onToggle: () => setState(
+                () => g.expanded
+                    ? _expandedPostponed.remove(g.group.day.epochDay)
+                    : _expandedPostponed.add(g.group.day.epochDay),
+              ),
+              onRemove: () async {
+                for (final e in g.group.entries) {
+                  await s.tasks.archivePostponement(e.postponement!.id);
+                }
+              },
+            ),
             AgendaEntryRow e => Column(
               key: ValueKey(e.entry.key),
               mainAxisSize: MainAxisSize.min,
@@ -431,14 +457,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
           ),
         ),
         for (final h in items)
-          if (h.postponement != null)
-            PostponedTile(
-              key: ValueKey('hp${h.postponement!.id}'),
-              postponement: h.postponement!,
-              today: today,
-              dense: true,
-            )
-          else
+          if (h.postponement == null)
             TaskTile(
               key: ValueKey('h${h.item.task.id}_${h.occurrence?.date.epochDay}'),
               item: h.item,
@@ -446,6 +465,28 @@ class _AgendaScreenState extends State<AgendaScreen> {
               today: today,
               dense: true,
             ),
+        // Several tasks postponed that day: one line, unfolded on demand.
+        if (postponed > 1)
+          PostponedGroupTile(
+            key: ValueKey('hpg${day.epochDay}'),
+            count: postponed,
+            expanded: _expandedHistory.contains(day.epochDay),
+            dense: true,
+            onToggle: () => setState(
+              () => _expandedHistory.contains(day.epochDay)
+                  ? _expandedHistory.remove(day.epochDay)
+                  : _expandedHistory.add(day.epochDay),
+            ),
+          ),
+        if (postponed < 2 || _expandedHistory.contains(day.epochDay))
+          for (final h in items)
+            if (h.postponement != null)
+              PostponedTile(
+                key: ValueKey('hp${h.postponement!.id}'),
+                postponement: h.postponement!,
+                today: today,
+                dense: true,
+              ),
         if (isMonday) const Divider(height: 20, indent: 16, endIndent: 16),
       ],
     );

@@ -392,8 +392,20 @@ class _OverlayList extends StatelessWidget {
       rows.add(menu == null ? label : GestureDetector(onSecondaryTapUp: (d) => menu(d.globalPosition), child: label));
     }
 
-    void entries(Iterable<AgendaEntry> es, {bool overdue = false}) {
-      for (final e in es) {
+    void entries(List<AgendaEntry> es, {bool overdue = false}) {
+      for (final item in PostponedGroup.group(es)) {
+        if (item is PostponedGroup) {
+          rows.add(
+            _OverlayPostponedGroup(
+              key: ValueKey('pg${item.day.epochDay}'),
+              group: item,
+              today: agenda.today,
+              rowBuilder: (e) => _postponedRow(context, e),
+            ),
+          );
+          continue;
+        }
+        final e = item as AgendaEntry;
         if (e.isPostponed) {
           rows.add(_postponedRow(context, e));
           continue;
@@ -662,6 +674,65 @@ class _OverlayList extends StatelessWidget {
 
 /// Discreet one-line task entry at the bottom of the overlay: type a title,
 /// press Enter, the task is created for today. Esc clears the field.
+/// Several tasks postponed away from the same day: one red struck-through
+/// line ("Postponed tasks ×3"); click to show or hide them.
+class _OverlayPostponedGroup extends StatefulWidget {
+  const _OverlayPostponedGroup({super.key, required this.group, required this.today, required this.rowBuilder});
+  final PostponedGroup group;
+  final LocalDate today;
+  final Widget Function(AgendaEntry e) rowBuilder;
+
+  @override
+  State<_OverlayPostponedGroup> createState() => _OverlayPostponedGroupState();
+}
+
+class _OverlayPostponedGroupState extends State<_OverlayPostponedGroup> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final red = theme.colorScheme.error;
+    final day = widget.group.day;
+    final line = InkWell(
+      onTap: () => setState(() => _open = !_open),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          children: [
+            const SizedBox(width: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Icon(Icons.redo, size: 18, color: red),
+            ),
+            Expanded(
+              child: Text(
+                'Postponed tasks ×${widget.group.entries.length}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: red.withValues(alpha: 0.8),
+                  decoration: TextDecoration.lineThrough,
+                  decorationColor: red,
+                  decorationThickness: 2,
+                ),
+              ),
+            ),
+            if (day < widget.today)
+              Text(Fmt.relativeDate(day, widget.today), style: theme.textTheme.labelSmall?.copyWith(color: red)),
+            Icon(_open ? Icons.expand_less : Icons.expand_more, size: 16, color: red),
+          ],
+        ),
+      ),
+    );
+    if (!_open) return line;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [line, for (final e in widget.group.entries) widget.rowBuilder(e)],
+    );
+  }
+}
+
 class _OverlayQuickAdd extends StatefulWidget {
   const _OverlayQuickAdd();
   @override

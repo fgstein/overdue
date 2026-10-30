@@ -50,6 +50,27 @@ void main() {
     expect(section(a, AgendaSectionKind.upcoming, tomorrow)!.entries.single.isPostponed, isFalse);
   });
 
+  test('several tasks postponed from the same day are grouped, one alone is not', () async {
+    final keep = await app.tasks.createTask(TaskDraft(title: 'Stays', dueDate: today));
+    final ids = [
+      for (final t in ['A', 'B', 'C']) await app.tasks.createTask(TaskDraft(title: t, dueDate: today)),
+    ];
+    final single = await app.tasks.createTask(TaskDraft(title: 'D', dueDate: tomorrow));
+    await app.tasks.rescheduleTasks(ids, today.addDays(3));
+    await app.tasks.rescheduleTasks([single], today.addDays(4));
+
+    final a = await agenda();
+    final todayItems = PostponedGroup.group(section(a, AgendaSectionKind.today)!.entries);
+    expect(todayItems, hasLength(2));
+    expect((todayItems[0] as AgendaEntry).task.id, keep);
+    final group = todayItems[1] as PostponedGroup;
+    expect(group.day, today);
+    expect(group.entries.map((e) => e.task.title), unorderedEquals(['A', 'B', 'C']));
+
+    final tomorrowItems = PostponedGroup.group(section(a, AgendaSectionKind.upcoming, tomorrow)!.entries);
+    expect(tomorrowItems.single, isA<AgendaEntry>(), reason: 'a single trace stays as it is');
+  });
+
   test('the trace is gone the next day but stays in history', () async {
     final id = await app.tasks.createTask(TaskDraft(title: 'Report', dueDate: today));
     await app.tasks.rescheduleTasks([id], tomorrow);

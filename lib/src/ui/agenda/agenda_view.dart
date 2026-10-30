@@ -91,8 +91,34 @@ class AgendaEntryRow extends AgendaRow {
   final AgendaSection section;
 }
 
-List<AgendaRow> flattenAgenda(Agenda a, {required ColorScheme scheme, bool overdueCollapsed = false}) {
+/// Several tasks postponed away from the same day, on one line.
+class AgendaPostponedGroupRow extends AgendaRow {
+  AgendaPostponedGroupRow(this.group, {required this.expanded});
+  final PostponedGroup group;
+  final bool expanded;
+}
+
+/// [expandedPostponed]: days (epoch days) whose postponed tasks are unfolded.
+List<AgendaRow> flattenAgenda(
+  Agenda a, {
+  required ColorScheme scheme,
+  bool overdueCollapsed = false,
+  Set<int> expandedPostponed = const {},
+}) {
   final rows = <AgendaRow>[];
+  void entries(AgendaSection s) {
+    for (final item in PostponedGroup.group(s.entries)) {
+      switch (item) {
+        case PostponedGroup g:
+          final open = expandedPostponed.contains(g.day.epochDay);
+          rows.add(AgendaPostponedGroupRow(g, expanded: open));
+          if (open) rows.addAll(g.entries.map((e) => AgendaEntryRow(e, s)));
+        case AgendaEntry e:
+          rows.add(AgendaEntryRow(e, s));
+      }
+    }
+  }
+
   final today = a.todaySections.toList();
   // Dropping on the "Today" title plans the task for today, even when the
   // day is still empty.
@@ -109,7 +135,7 @@ List<AgendaRow> flattenAgenda(Agenda a, {required ColorScheme scheme, bool overd
         section: s,
       ),
     );
-    rows.addAll(s.entries.map((e) => AgendaEntryRow(e, s)));
+    entries(s);
   }
   final overdue = a.overdue;
   if (overdue != null) {
@@ -123,7 +149,7 @@ List<AgendaRow> flattenAgenda(Agenda a, {required ColorScheme scheme, bool overd
         section: overdue,
       ),
     );
-    if (!overdueCollapsed) rows.addAll(overdue.entries.map((e) => AgendaEntryRow(e, overdue)));
+    if (!overdueCollapsed) entries(overdue);
   }
   final upcoming = a.upcoming.toList();
   if (upcoming.isNotEmpty) {
@@ -137,7 +163,7 @@ List<AgendaRow> flattenAgenda(Agenda a, {required ColorScheme scheme, bool overd
           section: s,
         ),
       );
-      rows.addAll(s.entries.map((e) => AgendaEntryRow(e, s)));
+      entries(s);
     }
   }
   return rows;
@@ -207,6 +233,101 @@ class AgendaEntryTile extends StatelessWidget {
     selected: selected,
     onSelect: onSelect,
   );
+}
+
+/// Several traces of tasks postponed away from the same day, folded into one
+/// red struck-through line: "Postponed tasks ×3". Click to show them; ×
+/// removes them all from the agenda.
+class PostponedGroupTile extends StatelessWidget {
+  const PostponedGroupTile({
+    super.key,
+    required this.count,
+    required this.expanded,
+    required this.onToggle,
+    this.day,
+    this.onRemove,
+    this.dense = false,
+  });
+  final int count;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  /// Shown when the line is not under its day's header (e.g. Overdue).
+  final String? day;
+  final VoidCallback? onRemove;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final red = scheme.error;
+    final density = AppDensity.of(context);
+    final compact = density != UiDensity.comfortable;
+    final small = dense || compact;
+    final title = Text(
+      'Postponed tasks ×$count',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: (compact ? theme.textTheme.bodyMedium : theme.textTheme.bodyLarge)?.copyWith(
+        color: red.withValues(alpha: 0.8),
+        decoration: TextDecoration.lineThrough,
+        decorationColor: red,
+        decorationThickness: 2,
+      ),
+    );
+    final hint = Text(
+      [?day, expanded ? 'Click to hide them' : 'Click to show them'].join(' · '),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.labelSmall?.copyWith(color: red),
+    );
+    return InkWell(
+      onTap: onToggle,
+      child: Padding(
+        padding: compact
+            ? EdgeInsets.fromLTRB(4, dense ? 1 : 2, 4, dense ? 1 : 2)
+            : EdgeInsets.fromLTRB(16, dense ? 4 : 8, 8, dense ? 4 : 8),
+        child: Row(
+          children: [
+            Container(
+              width: compact ? 3 : 4,
+              height: compact ? (density == UiDensity.singleLine ? 18 : 24) : (small ? 28 : 36),
+              decoration: BoxDecoration(color: red.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2)),
+            ),
+            SizedBox(width: compact ? 6 : 10),
+            Icon(Icons.redo, size: compact ? 18 : 20, color: red),
+            SizedBox(width: compact ? 6 : 12),
+            Expanded(
+              child: density == UiDensity.singleLine
+                  ? Row(
+                      children: [
+                        Flexible(flex: 3, child: title),
+                        const SizedBox(width: 10),
+                        Flexible(flex: 2, child: hint),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [title, hint],
+                    ),
+            ),
+            Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 20, color: red),
+            if (onRemove != null)
+              IconButton(
+                tooltip: 'Remove them from the agenda',
+                visualDensity: VisualDensity.compact,
+                padding: compact ? EdgeInsets.zero : null,
+                constraints: compact ? const BoxConstraints.tightFor(width: 28, height: 28) : null,
+                icon: Icon(Icons.close, size: 18, color: scheme.outline),
+                onPressed: onRemove,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Trace of a task postponed away from this day: struck through in red,

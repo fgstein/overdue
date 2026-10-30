@@ -97,6 +97,34 @@ void main() {
     await tester.runAsync(() => services.db.close());
   });
 
+  testWidgets('tasks postponed from the same day fold into one line that unfolds on click', (tester) async {
+    await boot(tester);
+    final ids = <int>[];
+    for (final t in ['Call the bank', 'Book the dentist', 'Renew insurance']) {
+      ids.add(
+        (await tester.runAsync(() => services.tasks.createTask(TaskDraft(title: t, dueDate: LocalDate(2026, 10, 4)))))!,
+      );
+    }
+    // One transaction: several separate writes inside runAsync stall the test binding.
+    await tester.runAsync(
+      () => services.db.transaction(() => services.tasks.rescheduleTasks(ids, LocalDate(2026, 10, 20))),
+    );
+    await settle(tester);
+
+    expect(find.text('Postponed tasks ×3'), findsOneWidget);
+    expect(find.text('Call the bank'), findsNothing);
+
+    await tester.tap(find.text('Postponed tasks ×3'));
+    await settle(tester);
+    expect(find.text('Call the bank'), findsOneWidget);
+    expect(find.text('Renew insurance'), findsOneWidget);
+
+    await tester.tap(find.text('Postponed tasks ×3'));
+    await settle(tester);
+    expect(find.text('Call the bank'), findsNothing);
+    await tester.runAsync(() => services.db.close());
+  });
+
   testWidgets('"More options" without a title opens the full editor', (tester) async {
     await boot(tester);
     await tester.tap(find.byTooltip('New task (Ctrl+N)').first);
