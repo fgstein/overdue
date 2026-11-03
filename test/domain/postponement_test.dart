@@ -127,4 +127,22 @@ void main() {
     expect(rows.single, isA<AgendaEntryRow>());
     expect((rows.single as AgendaEntryRow).entry.isPostponed, isTrue);
   });
+
+  test('in Overdue, one folded row per day the tasks left (#2)', () async {
+    final d1 = today.addDays(-3), d2 = today.addDays(-2);
+    final a = await app.tasks.createTask(TaskDraft(title: 'A', dueDate: d1));
+    final b = await app.tasks.createTask(TaskDraft(title: 'B', dueDate: d2));
+    final c = await app.tasks.createTask(TaskDraft(title: 'C', dueDate: d2));
+    final late = await app.tasks.createTask(TaskDraft(title: 'Late', dueDate: d1));
+    await app.tasks.rescheduleTasks([a, b, c], tomorrow);
+
+    final s = section(await agenda(), AgendaSectionKind.overdue)!;
+    final rows = sectionRows(s);
+    expect(rows, hasLength(3), reason: 'the open task, the lone trace of d1, the group of d2');
+    expect((rows[0] as AgendaEntryRow).entry.task.id, late);
+    expect((rows[1] as AgendaEntryRow).entry.postponement!.from, d1);
+    final group = rows[2] as AgendaPostponedGroupRow;
+    expect(group.day, d2);
+    expect(group.entries.map((e) => e.task.title), unorderedEquals(['B', 'C']));
+  });
 }

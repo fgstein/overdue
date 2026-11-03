@@ -91,30 +91,49 @@ class AgendaEntryRow extends AgendaRow {
   final AgendaSection section;
 }
 
-/// Traces of the tasks postponed away from a section, folded into one line
-/// with a counter (expands to show each of them).
+/// Traces of the tasks postponed away from the same [day], folded into one
+/// line with a counter (expands to show each of them).
 class AgendaPostponedGroupRow extends AgendaRow {
-  AgendaPostponedGroupRow(this.entries, this.section);
+  AgendaPostponedGroupRow(this.day, this.entries, this.section);
+
+  /// Day the tasks were planned on before being postponed.
+  final LocalDate day;
   final List<AgendaEntry> entries;
   final AgendaSection section;
 
   /// Stable key (list diffing, remembered expansion).
-  String get key => 'pg_${section.kind.name}_${section.date?.epochDay ?? ''}';
+  String get key => 'pg_${day.epochDay}';
 }
 
-/// From this many postponed traces in a section, they are folded into one
-/// line: a single trace takes no more room than the counter would.
+/// From this many traces postponed away from the same day, they are folded
+/// into one line: a single trace takes no more room than the counter would.
 const kPostponedGroupMin = 2;
 
-/// Rows of the entries of [s]: its tasks, then its postponed traces (folded
-/// into one [AgendaPostponedGroupRow] when there are several).
+/// Postponed traces of [entries] by the day they left (oldest day first).
+Map<LocalDate, List<AgendaEntry>> postponedByDay(Iterable<AgendaEntry> entries) {
+  final byDay = <int, List<AgendaEntry>>{};
+  for (final e in entries.where((e) => e.isPostponed)) {
+    byDay.putIfAbsent(e.postponement!.from.epochDay, () => []).add(e);
+  }
+  return {for (final d in byDay.keys.toList()..sort()) LocalDate.fromEpochDay(d): byDay[d]!};
+}
+
+/// Rows of the entries of [s]: its tasks, then its postponed traces, one
+/// folded [AgendaPostponedGroupRow] per day they left (Overdue mixes days)
+/// when there are several from that day.
 List<AgendaRow> sectionRows(AgendaSection s) {
-  final postponed = s.entries.where((e) => e.isPostponed).toList();
-  if (postponed.length < kPostponedGroupMin) return [for (final e in s.entries) AgendaEntryRow(e, s)];
+  final byDay = postponedByDay(s.entries);
+  if (byDay.values.every((l) => l.length < kPostponedGroupMin)) {
+    return [for (final e in s.entries) AgendaEntryRow(e, s)];
+  }
   return [
     for (final e in s.entries)
       if (!e.isPostponed) AgendaEntryRow(e, s),
-    AgendaPostponedGroupRow(postponed, s),
+    for (final MapEntry(key: day, value: traces) in byDay.entries)
+      if (traces.length >= kPostponedGroupMin)
+        AgendaPostponedGroupRow(day, traces, s)
+      else
+        for (final e in traces) AgendaEntryRow(e, s),
   ];
 }
 
@@ -336,10 +355,15 @@ class PostponedGroupTile extends StatefulWidget {
     required this.storageKey,
     required this.postponements,
     required this.today,
+    this.day,
     this.onRemove,
     this.onRemoveAll,
     this.dense = false,
   });
+
+  /// Day the tasks left, shown when the line is not under that day's own
+  /// header (Overdue, which mixes days).
+  final LocalDate? day;
 
   /// Identifies the group to remember whether it is expanded.
   final String storageKey;
@@ -402,6 +426,10 @@ class _PostponedGroupTileState extends State<PostponedGroupTile> {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            if (widget.day != null) ...[
+              const SizedBox(width: 6),
+              Text('· ${Fmt.longDate(widget.day!)}', style: theme.textTheme.labelSmall?.copyWith(color: red)),
+            ],
             const SizedBox(width: 8),
             // Collapsed: the titles, so the line still says what moved.
             Expanded(

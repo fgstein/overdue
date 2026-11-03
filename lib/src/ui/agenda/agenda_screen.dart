@@ -322,6 +322,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
                   storageKey: g.key,
                   postponements: [for (final e in g.entries) e.postponement!],
                   today: today,
+                  day: g.section.kind == AgendaSectionKind.overdue ? g.day : null,
                   onRemove: (p) => s.tasks.archivePostponement(p.id),
                   onRemoveAll: () async {
                     for (final e in g.entries) {

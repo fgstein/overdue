@@ -392,13 +392,16 @@ class _OverlayList extends StatelessWidget {
       rows.add(menu == null ? label : GestureDetector(onSecondaryTapUp: (d) => menu(d.globalPosition), child: label));
     }
 
-    void entries(Iterable<AgendaEntry> es, {bool overdue = false, required String group}) {
-      // Several postponed traces fold into one line with a counter.
-      final postponed = es.where((e) => e.isPostponed).toList();
-      final fold = postponed.length >= kPostponedGroupMin;
+    void entries(Iterable<AgendaEntry> es, {bool overdue = false}) {
+      // Several traces postponed away from the same day fold into one line.
+      final byDay = postponedByDay(es);
+      final fold = {
+        for (final MapEntry(key: d, value: l) in byDay.entries)
+          if (l.length >= kPostponedGroupMin) d.epochDay,
+      };
       for (final e in es) {
         if (e.isPostponed) {
-          if (!fold) rows.add(_postponedRow(context, e));
+          if (!fold.contains(e.postponement!.from.epochDay)) rows.add(_postponedRow(context, e));
           continue;
         }
         rows.add(
@@ -479,14 +482,16 @@ class _OverlayList extends StatelessWidget {
         );
         if (e.chain.isNotEmpty) rows.add(_chainRow(context, e));
       }
-      if (fold) {
+      for (final MapEntry(key: day, value: traces) in byDay.entries) {
+        if (!fold.contains(day.epochDay)) continue;
         rows.add(
           _OverlayPostponedGroup(
-            key: ValueKey('pg_$group'),
-            storageKey: group,
-            count: postponed.length,
-            titles: postponed.map((e) => e.task.title).join(', '),
-            rows: [for (final e in postponed) _postponedRow(context, e)],
+            key: ValueKey('pg_${day.epochDay}'),
+            storageKey: '${day.epochDay}',
+            count: traces.length,
+            day: overdue ? Fmt.longDate(day) : null,
+            titles: traces.map((e) => e.task.title).join(', '),
+            rows: [for (final e in traces) _postponedRow(context, e)],
           ),
         );
       }
@@ -500,18 +505,17 @@ class _OverlayList extends StatelessWidget {
         scheme.error,
         (at) => _overdueMenu(context, overdue.entries.where((e) => e.isOpen).toList(), at),
       );
-      entries(overdue.entries, overdue: true, group: 'overdue');
+      entries(overdue.entries, overdue: true);
     }
     header('TODAY', agenda.todayCount);
-    // One postponed group for the whole of today.
-    entries(agenda.todaySections.expand((s) => s.entries).toList(), group: 'today');
+    entries(agenda.todaySections.expand((s) => s.entries));
     for (final s in agenda.upcoming) {
       header(
         s.date == agenda.today.addDays(1) ? 'TOMORROW' : Fmt.longDate(s.date!).toUpperCase(),
         s.openCount,
         scheme.outline,
       );
-      entries(s.entries, group: 'd${s.date!.epochDay}');
+      entries(s.entries);
     }
     if (agenda.isEmpty) {
       rows.add(
@@ -682,11 +686,15 @@ class _OverlayPostponedGroup extends StatefulWidget {
     super.key,
     required this.storageKey,
     required this.count,
+    this.day,
     required this.titles,
     required this.rows,
   });
   final String storageKey;
   final int count;
+
+  /// Day the tasks left, shown in Overdue (which mixes days).
+  final String? day;
   final String titles;
   final List<Widget> rows;
 
@@ -732,6 +740,10 @@ class _OverlayPostponedGroupState extends State<_OverlayPostponedGroup> {
                   '${widget.count} postponed',
                   style: theme.textTheme.bodyMedium?.copyWith(color: red, fontWeight: FontWeight.w600),
                 ),
+                if (widget.day != null) ...[
+                  const SizedBox(width: 6),
+                  Text('· ${widget.day}', style: theme.textTheme.labelSmall?.copyWith(color: red)),
+                ],
                 const SizedBox(width: 6),
                 Expanded(
                   child: _expanded
