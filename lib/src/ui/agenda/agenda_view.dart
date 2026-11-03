@@ -91,6 +91,33 @@ class AgendaEntryRow extends AgendaRow {
   final AgendaSection section;
 }
 
+/// Traces of the tasks postponed away from a section, folded into one line
+/// with a counter (expands to show each of them).
+class AgendaPostponedGroupRow extends AgendaRow {
+  AgendaPostponedGroupRow(this.entries, this.section);
+  final List<AgendaEntry> entries;
+  final AgendaSection section;
+
+  /// Stable key (list diffing, remembered expansion).
+  String get key => 'pg_${section.kind.name}_${section.date?.epochDay ?? ''}';
+}
+
+/// From this many postponed traces in a section, they are folded into one
+/// line: a single trace takes no more room than the counter would.
+const kPostponedGroupMin = 2;
+
+/// Rows of the entries of [s]: its tasks, then its postponed traces (folded
+/// into one [AgendaPostponedGroupRow] when there are several).
+List<AgendaRow> sectionRows(AgendaSection s) {
+  final postponed = s.entries.where((e) => e.isPostponed).toList();
+  if (postponed.length < kPostponedGroupMin) return [for (final e in s.entries) AgendaEntryRow(e, s)];
+  return [
+    for (final e in s.entries)
+      if (!e.isPostponed) AgendaEntryRow(e, s),
+    AgendaPostponedGroupRow(postponed, s),
+  ];
+}
+
 List<AgendaRow> flattenAgenda(Agenda a, {required ColorScheme scheme, bool overdueCollapsed = false}) {
   final rows = <AgendaRow>[];
   final today = a.todaySections.toList();
@@ -109,7 +136,7 @@ List<AgendaRow> flattenAgenda(Agenda a, {required ColorScheme scheme, bool overd
         section: s,
       ),
     );
-    rows.addAll(s.entries.map((e) => AgendaEntryRow(e, s)));
+    rows.addAll(sectionRows(s));
   }
   final overdue = a.overdue;
   if (overdue != null) {
@@ -123,7 +150,7 @@ List<AgendaRow> flattenAgenda(Agenda a, {required ColorScheme scheme, bool overd
         section: overdue,
       ),
     );
-    if (!overdueCollapsed) rows.addAll(overdue.entries.map((e) => AgendaEntryRow(e, overdue)));
+    if (!overdueCollapsed) rows.addAll(sectionRows(overdue));
   }
   final upcoming = a.upcoming.toList();
   if (upcoming.isNotEmpty) {
@@ -137,7 +164,7 @@ List<AgendaRow> flattenAgenda(Agenda a, {required ColorScheme scheme, bool overd
           section: s,
         ),
       );
-      rows.addAll(s.entries.map((e) => AgendaEntryRow(e, s)));
+      rows.addAll(sectionRows(s));
     }
   }
   return rows;
@@ -297,6 +324,129 @@ class PostponedTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Several postponed traces folded into one line: "↷ 3 postponed", which
+/// expands to show each trace ([PostponedTile]). × removes them all now.
+class PostponedGroupTile extends StatefulWidget {
+  const PostponedGroupTile({
+    super.key,
+    required this.storageKey,
+    required this.postponements,
+    required this.today,
+    this.onRemove,
+    this.onRemoveAll,
+    this.dense = false,
+  });
+
+  /// Identifies the group to remember whether it is expanded.
+  final String storageKey;
+  final List<PostponedItem> postponements;
+  final LocalDate today;
+
+  /// Removes one trace (null: traces cannot be removed, e.g. history).
+  final void Function(PostponedItem p)? onRemove;
+
+  /// Removes every trace of the group.
+  final VoidCallback? onRemoveAll;
+  final bool dense;
+
+  @override
+  State<PostponedGroupTile> createState() => _PostponedGroupTileState();
+}
+
+class _PostponedGroupTileState extends State<PostponedGroupTile> {
+  bool _expanded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Survives the row being rebuilt or scrolled out of the lazy list.
+    _expanded = PageStorage.maybeOf(context)?.readState(context, identifier: _id) as bool? ?? _expanded;
+  }
+
+  String get _id => 'postponed-group:${widget.storageKey}';
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    PageStorage.maybeOf(context)?.writeState(context, _expanded, identifier: _id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final red = scheme.error;
+    final density = AppDensity.of(context);
+    final compact = density != UiDensity.comfortable;
+    final small = widget.dense || compact;
+    final n = widget.postponements.length;
+    final titles = widget.postponements.map((p) => p.item.task.title).join(', ');
+    final header = InkWell(
+      onTap: _toggle,
+      child: Padding(
+        padding: compact
+            ? EdgeInsets.fromLTRB(4, widget.dense ? 1 : 2, 4, widget.dense ? 1 : 2)
+            : EdgeInsets.fromLTRB(16, widget.dense ? 2 : 4, 8, widget.dense ? 2 : 4),
+        child: Row(
+          children: [
+            SizedBox(width: compact ? 9 : 14),
+            Icon(Icons.redo, size: compact ? 18 : 20, color: red),
+            SizedBox(width: compact ? 6 : 12),
+            Text(
+              '$n postponed',
+              style: (small ? theme.textTheme.labelMedium : theme.textTheme.labelLarge)?.copyWith(
+                color: red,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Collapsed: the titles, so the line still says what moved.
+            Expanded(
+              child: _expanded
+                  ? const SizedBox.shrink()
+                  : Text(
+                      titles,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: red.withValues(alpha: 0.7),
+                        decoration: TextDecoration.lineThrough,
+                        decorationColor: red.withValues(alpha: 0.7),
+                      ),
+                    ),
+            ),
+            Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 20, color: scheme.outline),
+            if (widget.onRemoveAll != null)
+              IconButton(
+                tooltip: 'Remove all from the agenda',
+                visualDensity: VisualDensity.compact,
+                padding: compact ? EdgeInsets.zero : null,
+                constraints: compact ? const BoxConstraints.tightFor(width: 28, height: 28) : null,
+                icon: Icon(Icons.close, size: 18, color: scheme.outline),
+                onPressed: widget.onRemoveAll,
+              ),
+          ],
+        ),
+      ),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        header,
+        if (_expanded)
+          for (final p in widget.postponements)
+            PostponedTile(
+              key: ValueKey('p${p.id}'),
+              postponement: p,
+              today: widget.today,
+              dense: widget.dense,
+              onRemove: widget.onRemove == null ? null : () => widget.onRemove!(p),
+            ),
+      ],
     );
   }
 }

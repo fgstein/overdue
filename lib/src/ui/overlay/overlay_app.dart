@@ -392,10 +392,13 @@ class _OverlayList extends StatelessWidget {
       rows.add(menu == null ? label : GestureDetector(onSecondaryTapUp: (d) => menu(d.globalPosition), child: label));
     }
 
-    void entries(Iterable<AgendaEntry> es, {bool overdue = false}) {
+    void entries(Iterable<AgendaEntry> es, {bool overdue = false, required String group}) {
+      // Several postponed traces fold into one line with a counter.
+      final postponed = es.where((e) => e.isPostponed).toList();
+      final fold = postponed.length >= kPostponedGroupMin;
       for (final e in es) {
         if (e.isPostponed) {
-          rows.add(_postponedRow(context, e));
+          if (!fold) rows.add(_postponedRow(context, e));
           continue;
         }
         rows.add(
@@ -476,6 +479,17 @@ class _OverlayList extends StatelessWidget {
         );
         if (e.chain.isNotEmpty) rows.add(_chainRow(context, e));
       }
+      if (fold) {
+        rows.add(
+          _OverlayPostponedGroup(
+            key: ValueKey('pg_$group'),
+            storageKey: group,
+            count: postponed.length,
+            titles: postponed.map((e) => e.task.title).join(', '),
+            rows: [for (final e in postponed) _postponedRow(context, e)],
+          ),
+        );
+      }
     }
 
     final overdue = agenda.overdue;
@@ -486,19 +500,18 @@ class _OverlayList extends StatelessWidget {
         scheme.error,
         (at) => _overdueMenu(context, overdue.entries.where((e) => e.isOpen).toList(), at),
       );
-      entries(overdue.entries, overdue: true);
+      entries(overdue.entries, overdue: true, group: 'overdue');
     }
     header('TODAY', agenda.todayCount);
-    for (final s in agenda.todaySections) {
-      entries(s.entries);
-    }
+    // One postponed group for the whole of today.
+    entries(agenda.todaySections.expand((s) => s.entries).toList(), group: 'today');
     for (final s in agenda.upcoming) {
       header(
         s.date == agenda.today.addDays(1) ? 'TOMORROW' : Fmt.longDate(s.date!).toUpperCase(),
         s.openCount,
         scheme.outline,
       );
-      entries(s.entries);
+      entries(s.entries, group: 'd${s.date!.epochDay}');
     }
     if (agenda.isEmpty) {
       rows.add(
@@ -662,6 +675,89 @@ class _OverlayList extends StatelessWidget {
 
 /// Discreet one-line task entry at the bottom of the overlay: type a title,
 /// press Enter, the task is created for today. Esc clears the field.
+/// Postponed traces folded into one line, "↷ 3 postponed", that expands to
+/// show each of them.
+class _OverlayPostponedGroup extends StatefulWidget {
+  const _OverlayPostponedGroup({
+    super.key,
+    required this.storageKey,
+    required this.count,
+    required this.titles,
+    required this.rows,
+  });
+  final String storageKey;
+  final int count;
+  final String titles;
+  final List<Widget> rows;
+
+  @override
+  State<_OverlayPostponedGroup> createState() => _OverlayPostponedGroupState();
+}
+
+class _OverlayPostponedGroupState extends State<_OverlayPostponedGroup> {
+  bool _expanded = false;
+
+  String get _id => 'overlay-postponed:${widget.storageKey}';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _expanded = PageStorage.maybeOf(context)?.readState(context, identifier: _id) as bool? ?? _expanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final red = scheme.error;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: () {
+            setState(() => _expanded = !_expanded);
+            PageStorage.maybeOf(context)?.writeState(context, _expanded, identifier: _id);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Row(
+              children: [
+                const SizedBox(width: 4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Icon(Icons.redo, size: 18, color: red),
+                ),
+                Text(
+                  '${widget.count} postponed',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: red, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _expanded
+                      ? const SizedBox.shrink()
+                      : Text(
+                          widget.titles,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: red.withValues(alpha: 0.7),
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: red.withValues(alpha: 0.7),
+                          ),
+                        ),
+                ),
+                Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 16, color: scheme.outline),
+              ],
+            ),
+          ),
+        ),
+        if (_expanded) ...widget.rows,
+      ],
+    );
+  }
+}
+
 class _OverlayQuickAdd extends StatefulWidget {
   const _OverlayQuickAdd();
   @override

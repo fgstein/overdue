@@ -5,6 +5,7 @@ import 'package:overdue/src/domain/agenda.dart';
 import 'package:overdue/src/domain/models.dart';
 import 'package:overdue/src/platform/platform_integration.dart';
 import 'package:overdue/src/ui/agenda/agenda_drop.dart';
+import 'package:overdue/src/ui/agenda/agenda_view.dart';
 import 'package:overdue/src/ui/widgets/task_drag.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -98,5 +99,32 @@ void main() {
 
     await app.tasks.archivePostponement(s.entries.last.postponement!.id);
     expect(section(await agenda(), AgendaSectionKind.today)!.entries.where((e) => e.isPostponed), isEmpty);
+  });
+
+  test('several postponed traces fold into one row with a counter (#2)', () async {
+    final keep = await app.tasks.createTask(TaskDraft(title: 'Keep', dueDate: today));
+    final a1 = await app.tasks.createTask(TaskDraft(title: 'A', dueDate: today));
+    final b1 = await app.tasks.createTask(TaskDraft(title: 'B', dueDate: today));
+    final c1 = await app.tasks.createTask(TaskDraft(title: 'C', dueDate: today));
+    await app.tasks.rescheduleTasks([a1, b1], tomorrow);
+    await app.tasks.rescheduleTasks([c1], null);
+
+    final s = section(await agenda(), AgendaSectionKind.today)!;
+    expect(s.entries.where((e) => e.isPostponed), hasLength(3));
+    final rows = sectionRows(s);
+    expect(rows, hasLength(2), reason: 'the task, then one folded line');
+    expect((rows.first as AgendaEntryRow).entry.task.id, keep);
+    final group = rows.last as AgendaPostponedGroupRow;
+    expect(group.entries.map((e) => e.task.title), unorderedEquals(['A', 'B', 'C']));
+    expect(group.entries.every((e) => e.isPostponed), isTrue);
+  });
+
+  test('a single postponed trace keeps its own line', () async {
+    final id = await app.tasks.createTask(TaskDraft(title: 'Report', dueDate: today));
+    await app.tasks.rescheduleTasks([id], tomorrow);
+
+    final rows = sectionRows(section(await agenda(), AgendaSectionKind.today)!);
+    expect(rows.single, isA<AgendaEntryRow>());
+    expect((rows.single as AgendaEntryRow).entry.isPostponed, isTrue);
   });
 }

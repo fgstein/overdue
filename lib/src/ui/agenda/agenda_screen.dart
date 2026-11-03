@@ -310,6 +310,27 @@ class _AgendaScreenState extends State<AgendaScreen> {
               h.section == null
                   ? _header(context, h, agenda)
                   : AgendaDropSlot(section: h.section!, today: today, child: _header(context, h, agenda)),
+            AgendaPostponedGroupRow g => KeyedSubtree(
+              key: ValueKey(g.key),
+              // Drops on the group land at the end of the section (traces
+              // take no order).
+              child: AgendaDropSlot(
+                section: g.section,
+                today: today,
+                thisKey: g.entries.first.key,
+                child: PostponedGroupTile(
+                  storageKey: g.key,
+                  postponements: [for (final e in g.entries) e.postponement!],
+                  today: today,
+                  onRemove: (p) => s.tasks.archivePostponement(p.id),
+                  onRemoveAll: () async {
+                    for (final e in g.entries) {
+                      await s.tasks.archivePostponement(e.postponement!.id);
+                    }
+                  },
+                ),
+              ),
+            ),
             AgendaEntryRow e => Column(
               key: ValueKey(e.entry.key),
               mainAxisSize: MainAxisSize.min,
@@ -431,14 +452,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
           ),
         ),
         for (final h in items)
-          if (h.postponement != null)
-            PostponedTile(
-              key: ValueKey('hp${h.postponement!.id}'),
-              postponement: h.postponement!,
-              today: today,
-              dense: true,
-            )
-          else
+          if (h.postponement == null)
             TaskTile(
               key: ValueKey('h${h.item.task.id}_${h.occurrence?.date.epochDay}'),
               item: h.item,
@@ -446,6 +460,24 @@ class _AgendaScreenState extends State<AgendaScreen> {
               today: today,
               dense: true,
             ),
+        // Postponed tasks of the day: one line each, or folded with a counter.
+        if (postponed >= kPostponedGroupMin)
+          PostponedGroupTile(
+            key: ValueKey('hpg${day.epochDay}'),
+            storageKey: 'history_${day.epochDay}',
+            postponements: [for (final h in items) ?h.postponement],
+            today: today,
+            dense: true,
+          )
+        else
+          for (final h in items)
+            if (h.postponement != null)
+              PostponedTile(
+                key: ValueKey('hp${h.postponement!.id}'),
+                postponement: h.postponement!,
+                today: today,
+                dense: true,
+              ),
         if (isMonday) const Divider(height: 20, indent: 16, endIndent: 16),
       ],
     );
