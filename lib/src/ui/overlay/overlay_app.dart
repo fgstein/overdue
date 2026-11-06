@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../app/app_services.dart';
 import '../../core/local_date.dart';
+import '../../data/task_repository.dart';
 import '../../domain/agenda.dart';
 import '../../domain/enums.dart';
 import '../../domain/models.dart';
@@ -633,15 +634,21 @@ class _OverlayList extends StatelessWidget {
             child: Row(children: [Icon(Icons.skip_next, size: 18), SizedBox(width: 10), Text('Skip this occurrence')]),
           )
         else
-          ...BulkActions.rescheduleItems(includePick: false, height: 34),
+          ...BulkActions.rescheduleItems(today: s.clock.today(), includePick: false, height: 34),
         const PopupMenuDivider(),
         ...BulkActions.priorityItems(scheme, height: 34),
         const PopupMenuDivider(),
         if (!e.isDone)
-          const PopupMenuItem<Object>(
+          PopupMenuItem<Object>(
             value: 'followup',
             height: 34,
-            child: Row(children: [Icon(Icons.redo, size: 18), SizedBox(width: 10), Text('Close + follow-up tomorrow')]),
+            child: Row(
+              children: [
+                const Icon(Icons.redo, size: 18),
+                const SizedBox(width: 10),
+                Text('Close + follow-up ${TaskRepository.followUpDay(s.clock.today())}'),
+              ],
+            ),
           ),
       ],
     );
@@ -670,7 +677,7 @@ class _OverlayList extends StatelessWidget {
       position: _at(context, at),
       items: [
         const PopupMenuItem<Object>(enabled: false, height: 28, child: Text('Move all overdue to…')),
-        ...BulkActions.rescheduleItems(includePick: false, height: 34),
+        ...BulkActions.rescheduleItems(today: s.clock.today(), includePick: false, height: 34),
       ],
     );
     if (choice != null && context.mounted) await BulkActions.applyMenuChoice(context, s, choice, overdue);

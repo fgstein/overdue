@@ -266,7 +266,11 @@ class _AgendaScreenState extends State<AgendaScreen> {
               reverse: true,
               child: Row(
                 children: [
-                  menu('Reschedule', Icons.event, () => BulkActions.rescheduleItems(includeNoDate: true)),
+                  menu(
+                    'Reschedule',
+                    Icons.event,
+                    () => BulkActions.rescheduleItems(today: s.clock.today(), includeNoDate: true),
+                  ),
                   menu('Priority', Icons.flag_outlined, () => BulkActions.priorityItems(scheme)),
                   LiveQuery<List<Project>>(
                     id: 'projects',
@@ -576,7 +580,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
       },
       itemBuilder: (_) => [
         const PopupMenuItem<Object>(enabled: false, height: 28, child: Text('Move all overdue to…')),
-        ...BulkActions.rescheduleItems(),
+        ...BulkActions.rescheduleItems(today: s.clock.today()),
         const PopupMenuDivider(),
         const PopupMenuItem<Object>(
           value: 'select',

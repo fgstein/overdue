@@ -80,6 +80,16 @@ class _RecurrenceDialogState extends State<_RecurrenceDialog> {
     }
   }
 
+  /// Fills the form from a preset (the end condition is kept).
+  void _apply(RecurrenceRule r) => setState(() {
+    freq = r.frequency;
+    interval = r.interval;
+    _intervalCtrl.text = '$interval';
+    weekdays = {...r.weekdays};
+    monthlyMode = r.monthlyMode;
+    monthDay = r.monthDay ?? r.start.day;
+  });
+
   String get unit => switch (freq) {
     RecurrenceFrequency.daily => interval == 1 ? 'day' : 'days',
     RecurrenceFrequency.weekly => interval == 1 ? 'week' : 'weeks',
@@ -112,6 +122,31 @@ class _RecurrenceDialogState extends State<_RecurrenceDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final (label, preset) in [
+                    ('Every day', RecurrenceRule.daily(start)),
+                    ('Mon–Fri', RecurrenceRule.weekly(start, weekdays: {1, 2, 3, 4, 5})),
+                    (
+                      'Every ${weekdayNames[start.weekday - 1]}',
+                      RecurrenceRule.weekly(start, weekdays: {start.weekday}),
+                    ),
+                    ('Every month', RecurrenceRule.monthlyOnDay(start, start.day)),
+                    ('Every year', RecurrenceRule(frequency: RecurrenceFrequency.yearly, start: start)),
+                  ])
+                    ActionChip(
+                      label: Text(label),
+                      onPressed: () => _apply(preset),
+                      backgroundColor:
+                          r != null && r.samePatternAs(preset.copyWith(until: () => r.until, count: () => r.count))
+                          ? scheme.secondaryContainer
+                          : null,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
               SegmentedButton<RecurrenceFrequency>(
                 showSelectedIcon: false,
                 segments: const [

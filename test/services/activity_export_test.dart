@@ -90,5 +90,19 @@ void main() {
       expect((await app.tasks.getTask(fu2))!.title, '[FU] Call Bob', reason: 'no double prefix');
       expect(TaskRepository.followUpTitle('x'), '[FU] x');
     });
+
+    test('a follow-up made on Friday is for Monday', () async {
+      final app = await AppServices.create(
+        db: openMemoryDatabase(),
+        platform: HeadlessIntegration(),
+        clock: FixedClock(DateTime(2026, 10, 9, 17)), // Friday
+      );
+      addTearDown(app.db.close);
+      final id = await app.tasks.createTask(TaskDraft(title: 'Call Bob', dueDate: LocalDate(2026, 10, 9)));
+      final fu = await app.tasks.followUp((await app.tasks.getTask(id))!);
+      expect((await app.tasks.getTask(fu))!.dueDate, LocalDate(2026, 10, 12));
+      expect(TaskRepository.followUpDay(LocalDate(2026, 10, 9)), 'Monday');
+      expect(TaskRepository.followUpDay(LocalDate(2026, 10, 8)), 'tomorrow');
+    });
   });
 }

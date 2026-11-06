@@ -22,6 +22,17 @@ void main() {
       }
     });
 
+    test('next working day skips the weekend', () {
+      // 2026-11-02 is a Monday.
+      expect(LocalDate(2026, 11, 2).nextWorkday, LocalDate(2026, 11, 3)); // Mon -> Tue
+      expect(LocalDate(2026, 11, 5).nextWorkday, LocalDate(2026, 11, 6)); // Thu -> Fri
+      expect(LocalDate(2026, 11, 6).nextWorkday, LocalDate(2026, 11, 9)); // Fri -> Mon
+      expect(LocalDate(2026, 11, 7).nextWorkday, LocalDate(2026, 11, 9)); // Sat -> Mon
+      expect(LocalDate(2026, 11, 8).nextWorkday, LocalDate(2026, 11, 9)); // Sun -> Mon
+      expect(LocalDate(2026, 11, 7).isWeekend, isTrue);
+      expect(LocalDate(2026, 11, 6).isWeekend, isFalse);
+    });
+
     test('normalises overflowing months and days', () {
       expect(LocalDate(2026, 13, 1), LocalDate(2027, 1, 1));
       expect(LocalDate(2026, 0, 1), LocalDate(2025, 12, 1));

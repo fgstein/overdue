@@ -254,4 +254,25 @@ void main() {
     }
     expect(sw.elapsedMilliseconds, lessThan(500));
   });
+
+  test('presets: every Friday, weekdays, monthly', () {
+    final start = d(2026, 11, 5); // Thursday
+    final presets = {for (final (label, rule) in recurrencePresets(start)) label: rule};
+    expect(s(RecurrenceEngine.between(presets['Every Friday']!, start, d(2026, 11, 20))), [
+      '2026-11-06',
+      '2026-11-13',
+      '2026-11-20',
+    ]);
+    expect(
+      RecurrenceEngine.between(presets['Every weekday (Mon–Fri)']!, start, d(2026, 11, 11)).map((x) => x.weekday),
+      [4, 5, 1, 2, 3],
+    );
+    expect(s(RecurrenceEngine.between(presets['Every month on the 5th']!, start, d(2027, 1, 31))), [
+      '2026-11-05',
+      '2026-12-05',
+      '2027-01-05',
+    ]);
+    expect(presets, contains('Every day'));
+    expect(presets, contains('Every month on the last day'));
+  });
 }

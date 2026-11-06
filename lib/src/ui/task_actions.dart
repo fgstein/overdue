@@ -160,10 +160,10 @@ class _QuickActionsSheet extends StatelessWidget {
                         },
                       )
                     else
-                      for (final t in RescheduleTarget.values)
+                      for (final t in RescheduleTarget.on(s.clock.today()))
                         ActionChip(
                           avatar: Icon(t.icon, size: 18),
-                          label: Text(t.label),
+                          label: Text(t.labelOn(s.clock.today())),
                           onPressed: () async {
                             close();
                             final (cancelled, date) = await BulkActions.resolve(hostContext, t, s.clock.today());
@@ -252,8 +252,11 @@ class _QuickActionsSheet extends StatelessWidget {
             if (status.isOpen)
               ListTile(
                 leading: const Icon(Icons.redo),
-                title: const Text('Close + follow-up tomorrow'),
-                subtitle: Text('Completes it and creates “${TaskRepository.followUpTitle(task.title)}” for tomorrow'),
+                title: Text('Close + follow-up ${TaskRepository.followUpDay(s.clock.today())}'),
+                subtitle: Text(
+                  'Completes it and creates “${TaskRepository.followUpTitle(task.title)}” '
+                  'for ${TaskRepository.followUpDay(s.clock.today())}',
+                ),
                 onTap: () {
                   close();
                   s.tasks.followUp(task, occurrenceDate: occurrence?.date);

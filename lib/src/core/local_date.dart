@@ -64,6 +64,16 @@ class LocalDate implements Comparable<LocalDate> {
   /// Monday of this date's ISO week.
   LocalDate get startOfWeek => addDays(1 - weekday);
 
+  /// Saturday or Sunday.
+  bool get isWeekend => weekday >= 6;
+
+  /// The next working day (Monday to Friday) after this date: Friday,
+  /// Saturday and Sunday all lead to Monday.
+  LocalDate get nextWorkday {
+    final next = addDays(1);
+    return next.isWeekend ? next.addDays(8 - next.weekday) : next;
+  }
+
   int daysUntil(LocalDate other) => other.epochDay - epochDay;
 
   bool isBefore(LocalDate other) => epochDay < other.epochDay;

@@ -25,6 +25,19 @@ enum RescheduleTarget {
     RescheduleTarget.pick => Icons.edit_calendar_outlined,
     RescheduleTarget.noDate => Icons.event_busy_outlined,
   };
+
+  /// Label as seen on [today]: "Tomorrow" skips the weekend, so from Friday
+  /// (or Saturday) it reads "Monday".
+  String labelOn(LocalDate today) =>
+      this == RescheduleTarget.tomorrow && today.addDays(1) != today.nextWorkday ? 'Monday' : label;
+
+  /// Whether to offer this target on [today]: "Next Monday" is left out when
+  /// "Tomorrow" already leads to that Monday.
+  bool shownOn(LocalDate today) =>
+      this != RescheduleTarget.nextMonday || BulkActions.nextMonday(today) != today.nextWorkday;
+
+  /// Targets offered on [today], in menu order.
+  static Iterable<RescheduleTarget> on(LocalDate today) => values.where((t) => t.shownOn(today));
 }
 
 /// Operations on one or many agenda entries at once (multi-select bar,
@@ -39,7 +52,8 @@ abstract final class BulkActions {
       case RescheduleTarget.today:
         return (false, today);
       case RescheduleTarget.tomorrow:
-        return (false, today.addDays(1));
+        // Postponing never lands on a weekend: Friday -> Monday.
+        return (false, today.nextWorkday);
       case RescheduleTarget.nextMonday:
         return (false, nextMonday(today));
       case RescheduleTarget.noDate:
@@ -98,21 +112,23 @@ abstract final class BulkActions {
     final diff = today.daysUntil(d);
     if (diff == 0) return 'today';
     if (diff == 1) return 'tomorrow';
+    if (diff <= 3 && d.weekday == 1) return 'Monday';
     return d.toString();
   }
 
   /// Menu entries for rescheduling (values are [RescheduleTarget]s).
   static List<PopupMenuEntry<Object>> rescheduleItems({
+    required LocalDate today,
     bool includeNoDate = false,
     bool includePick = true,
     double? height,
   }) => [
-    for (final t in RescheduleTarget.values)
+    for (final t in RescheduleTarget.on(today))
       if ((t != RescheduleTarget.noDate || includeNoDate) && (t != RescheduleTarget.pick || includePick))
         PopupMenuItem<Object>(
           value: t,
           height: height ?? kMinInteractiveDimension,
-          child: Row(children: [Icon(t.icon, size: 18), const SizedBox(width: 10), Text(t.label)]),
+          child: Row(children: [Icon(t.icon, size: 18), const SizedBox(width: 10), Text(t.labelOn(today))]),
         ),
   ];
 

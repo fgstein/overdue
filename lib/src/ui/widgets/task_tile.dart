@@ -242,20 +242,23 @@ class TaskTile extends StatelessWidget {
                   final (cancelled, date) = await BulkActions.resolve(context, target, s.clock.today());
                   if (!cancelled) await s.tasks.rescheduleTasks([task.id], date);
                 },
-                itemBuilder: (_) => [
-                  const PopupMenuItem<RescheduleTarget>(enabled: false, height: 28, child: Text('Postpone to…')),
-                  for (final t in RescheduleTarget.values.where((t) => t != RescheduleTarget.today))
-                    PopupMenuItem(
-                      value: t,
-                      child: Row(
-                        children: [
-                          Icon(t.icon, size: 18),
-                          const SizedBox(width: 10),
-                          Text(t == RescheduleTarget.noDate ? 'Backlog (no date)' : t.label),
-                        ],
+                itemBuilder: (_) {
+                  final today = AppScope.of(context).clock.today();
+                  return [
+                    const PopupMenuItem<RescheduleTarget>(enabled: false, height: 28, child: Text('Postpone to…')),
+                    for (final t in RescheduleTarget.on(today).where((t) => t != RescheduleTarget.today))
+                      PopupMenuItem(
+                        value: t,
+                        child: Row(
+                          children: [
+                            Icon(t.icon, size: 18),
+                            const SizedBox(width: 10),
+                            Text(t == RescheduleTarget.noDate ? 'Backlog (no date)' : t.labelOn(today)),
+                          ],
+                        ),
                       ),
-                    ),
-                ],
+                  ];
+                },
               ),
             IconButton(
               tooltip: 'Actions',
