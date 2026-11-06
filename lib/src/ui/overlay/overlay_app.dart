@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../app/app_services.dart';
 import '../../core/local_date.dart';
+import '../../data/task_repository.dart';
 import '../../domain/agenda.dart';
 import '../../domain/enums.dart';
 import '../../domain/models.dart';
@@ -638,10 +639,16 @@ class _OverlayList extends StatelessWidget {
         ...BulkActions.priorityItems(scheme, height: 34),
         const PopupMenuDivider(),
         if (!e.isDone)
-          const PopupMenuItem<Object>(
+          PopupMenuItem<Object>(
             value: 'followup',
             height: 34,
-            child: Row(children: [Icon(Icons.redo, size: 18), SizedBox(width: 10), Text('Close + follow-up tomorrow')]),
+            child: Row(
+              children: [
+                const Icon(Icons.redo, size: 18),
+                const SizedBox(width: 10),
+                Text('Close + follow-up ${TaskRepository.followUpDay(s.clock.today())}'),
+              ],
+            ),
           ),
       ],
     );

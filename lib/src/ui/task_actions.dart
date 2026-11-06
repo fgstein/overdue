@@ -252,8 +252,11 @@ class _QuickActionsSheet extends StatelessWidget {
             if (status.isOpen)
               ListTile(
                 leading: const Icon(Icons.redo),
-                title: const Text('Close + follow-up tomorrow'),
-                subtitle: Text('Completes it and creates “${TaskRepository.followUpTitle(task.title)}” for tomorrow'),
+                title: Text('Close + follow-up ${TaskRepository.followUpDay(s.clock.today())}'),
+                subtitle: Text(
+                  'Completes it and creates “${TaskRepository.followUpTitle(task.title)}” '
+                  'for ${TaskRepository.followUpDay(s.clock.today())}',
+                ),
                 onTap: () {
                   close();
                   s.tasks.followUp(task, occurrenceDate: occurrence?.date);

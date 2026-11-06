@@ -420,7 +420,8 @@ class TaskRepository {
   }
 
   /// Closes [task] (or its [occurrenceDate] occurrence) and creates a
-  /// follow-up for tomorrow: "[FU] title", same project, priority and parent.
+  /// follow-up for the next working day (Friday -> Monday): "[FU] title",
+  /// same project, priority and parent.
   /// Returns the new task's id.
   Future<int> followUp(Task task, {LocalDate? occurrenceDate}) => db.transaction(() async {
     if (occurrenceDate != null) {
@@ -434,12 +435,15 @@ class TaskRepository {
         projectId: task.projectId,
         parentId: task.parentId,
         priority: task.priority,
-        dueDate: _today.addDays(1),
+        dueDate: _today.nextWorkday,
       ),
     );
   });
 
   static const followUpPrefix = '[FU] ';
+
+  /// "tomorrow", or "Monday" when the weekend is skipped.
+  static String followUpDay(LocalDate today) => today.addDays(1) == today.nextWorkday ? 'tomorrow' : 'Monday';
 
   /// "[FU] title" (no double prefix when following up a follow-up).
   static String followUpTitle(String title) => title.startsWith(followUpPrefix) ? title : '$followUpPrefix$title';

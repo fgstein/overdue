@@ -33,7 +33,7 @@ A fast, fully offline task manager for **Windows, Ubuntu/Linux and Android**, bu
 | History | Scroll *up* in the agenda to go back in time, day by day, through what was completed (weekly review). |
 | Bulk actions | *Overdue ⋯*: move all overdue to today / tomorrow / next Monday / a date. Multi-select (toolbar button or Ctrl+click) to reschedule, change priority or project, or complete. Recurring occurrences are skipped rather than moved. |
 | Drag and drop | Desktop: in the agenda, drag to reorder tasks within a day (the order is remembered) or onto another day to change its due date; drag onto a project (a drop bar appears), a project column, or a day of the mini calendar. |
-| Follow-up | *Close + follow-up tomorrow* (right-click in the app or the overlay): completes the task and creates “[FU] title” for tomorrow in the same project. |
+| Follow-up | *Close + follow-up tomorrow* (right-click in the app or the overlay): completes the task and creates “[FU] title” for the next working day (tomorrow, or Monday from Friday or the weekend) in the same project. |
 | Activity export | Optional (*Settings → Activity export*): a small YAML file per month or week with the tasks completed, postponed and created, written to a folder you choose when the period ends; *Export now* writes the current period so far. |
 | Backups | Daily automatic copy of the database (default *Documents/Overdue backups*, 30 kept), *Back up now*, and *Restore* (a safety copy of the current data is made first). |
 
@@ -46,7 +46,7 @@ Requires Flutter 3.47+ (Dart 3.13+).
 
 ```sh
 flutter pub get
-flutter test                      # 154 tests: domain, database, reminders, migrations, UI, privacy
+flutter test                      # 155 tests: domain, database, reminders, migrations, UI, privacy
 flutter build linux --release     # Ubuntu: needs clang, cmake, ninja, libgtk-3-dev
 flutter build windows --release   # on Windows with Visual Studio (Desktop C++)
 flutter build apk --release       # Android SDK + NDK
