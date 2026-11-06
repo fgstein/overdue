@@ -234,10 +234,16 @@ class BacklogTile extends StatelessWidget {
                 if (!cancelled && date != null) await s.tasks.rescheduleTasks([t.id], date);
               },
               itemBuilder: (_) => [
-                for (final target in RescheduleTarget.values.where((x) => x != RescheduleTarget.noDate))
+                for (final target in RescheduleTarget.on(s.clock.today()).where((x) => x != RescheduleTarget.noDate))
                   PopupMenuItem(
                     value: target,
-                    child: Row(children: [Icon(target.icon, size: 18), const SizedBox(width: 10), Text(target.label)]),
+                    child: Row(
+                      children: [
+                        Icon(target.icon, size: 18),
+                        const SizedBox(width: 10),
+                        Text(target.labelOn(s.clock.today())),
+                      ],
+                    ),
                   ),
               ],
             ),

@@ -271,10 +271,20 @@ class TaskRepository {
 
   /// Per-day activity for the mini calendar over [from]..[to] (inclusive):
   /// tasks and occurrences due that day (done or not, cancelled excluded) and
-  /// tasks completed that day.
+  /// tasks completed that day. Recurring tasks also show on the days past
+  /// their materialised occurrences (e.g. next month in the calendar).
   Stream<Map<int, List<DayCell>>> watchDayActivity(LocalDate from, LocalDate to) {
     final startMs = _startOfDayMs(from), endMs = _startOfDayMs(to.addDays(1));
-    return db
+    final recurring = db
+        .customSelect(
+          'SELECT t.id AS id, t.title AS title, p.color AS color, p.name AS pname, t.due_minute AS minute, '
+          't.recurrence AS rule, t.recurrence_generated_until AS gen '
+          'FROM tasks t LEFT JOIN projects p ON p.id = t.project_id '
+          'WHERE t.type = 2 AND t.recurrence IS NOT NULL AND t.status NOT IN $_closedStatuses',
+          readsFrom: {db.tasks, db.projects},
+        )
+        .watch();
+    final rows = db
         .customSelect(
           '''
       SELECT t.id AS id, t.title AS title, p.color AS color, p.name AS pname, t.due_minute AS minute,
@@ -294,39 +304,57 @@ class TaskRepository {
           ],
           readsFrom: {db.tasks, db.occurrences, db.projects},
         )
-        .watch()
-        .map((rows) {
-          final out = <int, List<DayCell>>{};
-          final seen = <(int, int)>{};
-          void add(int day, QueryRow r, bool done) {
-            if (day < from.epochDay || day > to.epochDay || !seen.add((r.read<int>('id'), day))) return;
-            out
-                .putIfAbsent(day, () => [])
-                .add(
-                  DayCell(
-                    taskId: r.read<int>('id'),
-                    title: r.read<String>('title'),
-                    projectColor: r.readNullable<int>('color'),
-                    projectName: r.readNullable<String>('pname'),
-                    minute: r.readNullable<int>('minute'),
-                    done: done,
-                  ),
-                );
-          }
+        .watch();
+    return _combine(rows, recurring, (rows, recurring) {
+      final out = <int, List<DayCell>>{};
+      final seen = <(int, int)>{};
+      void add(int day, QueryRow r, bool done) {
+        if (day < from.epochDay || day > to.epochDay || !seen.add((r.read<int>('id'), day))) return;
+        out
+            .putIfAbsent(day, () => [])
+            .add(
+              DayCell(
+                taskId: r.read<int>('id'),
+                title: r.read<String>('title'),
+                projectColor: r.readNullable<int>('color'),
+                projectName: r.readNullable<String>('pname'),
+                minute: r.readNullable<int>('minute'),
+                done: done,
+              ),
+            );
+      }
 
-          for (final r in rows) {
-            final done = r.read<int>('status') == TaskStatus.completed.code;
-            final doneAt = r.readNullable<int>('done_at');
-            final due = r.readNullable<int>('day');
-            // A completed task counts on the day it was completed; otherwise on its due day.
-            if (done && doneAt != null) {
-              add(LocalDate.fromDateTime(DateTime.fromMillisecondsSinceEpoch(doneAt)).epochDay, r, true);
-            } else if (due != null) {
-              add(due, r, done);
-            }
-          }
-          return out;
-        });
+      for (final r in rows) {
+        final done = r.read<int>('status') == TaskStatus.completed.code;
+        final doneAt = r.readNullable<int>('done_at');
+        final due = r.readNullable<int>('day');
+        // A completed task counts on the day it was completed; otherwise on its due day.
+        if (done && doneAt != null) {
+          add(LocalDate.fromDateTime(DateTime.fromMillisecondsSinceEpoch(doneAt)).epochDay, r, true);
+        } else if (due != null) {
+          add(due, r, done);
+        }
+      }
+      // Projected occurrences: not stored yet, so not done.
+      final today = _today;
+      for (final r in recurring) {
+        final RecurrenceRule? rule;
+        try {
+          rule = RecurrenceRule.decode(r.read<String>('rule'));
+        } catch (_) {
+          continue;
+        }
+        if (rule == null) continue;
+        final gen = r.readNullable<int>('gen');
+        var start = gen == null ? today : LocalDate.fromEpochDay(gen + 1);
+        if (start < today) start = today;
+        if (start < from) start = from;
+        for (final d in RecurrenceEngine.between(rule, start, to, limit: 400)) {
+          add(d.epochDay, r, false);
+        }
+      }
+      return out;
+    });
   }
 
   /// Everything completed between [from] and [to] (inclusive), by local day:

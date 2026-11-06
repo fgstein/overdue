@@ -63,6 +63,27 @@ void main() {
     await tester.runAsync(() => services.db.close());
   });
 
+  testWidgets('quick add "Repeat: Every Friday" creates a recurring task', (tester) async {
+    await boot(tester);
+    await tester.tap(find.byTooltip('New task (Ctrl+N)').first);
+    await settle(tester);
+    await tester.enterText(find.widgetWithText(TextField, 'What needs to be done?'), 'Weekly review');
+    await tester.tap(find.byTooltip('Repeat'));
+    await settle(tester);
+    await tester.tap(find.text('Every Friday').last);
+    await settle(tester);
+    expect(find.text('Weekly on Fri'), findsOneWidget);
+    await tester.tap(find.text('Add'));
+    await settle(tester);
+
+    final t = await tester.runAsync(() => services.tasks.getTask(1));
+    expect(t!.type, TaskType.recurring);
+    expect(t.recurrence!.weekdays, {5});
+    // 2026-10-04 is a Sunday: the first occurrence is Friday the 9th.
+    expect(t.dueDate, LocalDate(2026, 10, 9));
+    await tester.runAsync(() => services.db.close());
+  });
+
   testWidgets('dropping a backlog task onto another chains them; the second is folded under the first', (tester) async {
     await boot(tester);
     final a = (await tester.runAsync(() => services.tasks.createTask(TaskDraft(title: 'Draft the contract'))))!;

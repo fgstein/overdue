@@ -5,10 +5,12 @@ import '../../app/app_services.dart';
 import '../../core/local_date.dart';
 import '../../domain/enums.dart';
 import '../../domain/models.dart';
+import '../../domain/recurrence.dart';
 import '../formatting.dart';
 import '../task_actions.dart';
 import '../theme.dart';
 import '../widgets/live_query.dart';
+import 'recurrence_editor.dart';
 
 /// Minimal-interaction task creation: type a title, press Enter.
 abstract final class QuickAdd {
@@ -56,7 +58,17 @@ class _QuickAddFormState extends State<_QuickAddForm> {
   late int? _projectId = widget.projectId;
   TaskPriority _priority = TaskPriority.normal;
   TaskType _type = TaskType.oneTime;
+
+  /// Set when the task repeats ("Every Friday"...): it is then created as a
+  /// recurring task with one occurrence on each matching day.
+  RecurrenceRule? _repeat;
   bool _busy = false;
+
+  /// Changes the date; a repeating task starts on it (today without a date).
+  void _setDue(LocalDate? due) => setState(() {
+    _due = due;
+    _repeat = _repeat?.copyWith(start: due ?? AppScope.of(context).clock.today());
+  });
 
   @override
   void dispose() {
@@ -80,7 +92,8 @@ class _QuickAddFormState extends State<_QuickAddForm> {
           dueDate: _due,
           projectId: _projectId,
           priority: _priority,
-          type: _type,
+          type: _repeat != null ? TaskType.recurring : _type,
+          recurrence: _repeat,
           parentId: widget.parentId,
         ),
       );
@@ -108,6 +121,37 @@ class _QuickAddFormState extends State<_QuickAddForm> {
     if (id != null && widget.hostContext.mounted) {
       await TaskActions.open(widget.hostContext, id, isNew: !hadTitle);
     }
+  }
+
+  /// "Repeat" menu: does not repeat, every day, every weekday, every Friday,
+  /// every month..., or a custom rule.
+  Widget _repeatChip(LocalDate today) {
+    final start = _due ?? today;
+    return PopupMenuButton<Object>(
+      tooltip: 'Repeat',
+      onSelected: (v) async {
+        if (v is RecurrenceRule) {
+          setState(() => _repeat = v);
+        } else if (v == 'none') {
+          setState(() => _repeat = null);
+        } else if (v == 'custom') {
+          final r = await showRecurrenceDialog(context, initial: _repeat ?? RecurrenceRule.daily(start), today: today);
+          if (r != null && mounted) setState(() => _repeat = r);
+        }
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem<Object>(value: 'none', child: Text('Does not repeat')),
+        const PopupMenuDivider(),
+        for (final (label, rule) in recurrencePresets(start)) PopupMenuItem<Object>(value: rule, child: Text(label)),
+        const PopupMenuDivider(),
+        const PopupMenuItem<Object>(value: 'custom', child: Text('Custom…')),
+      ],
+      child: Chip(
+        avatar: const Icon(Icons.repeat, size: 18),
+        label: Text(_repeat?.describe() ?? 'Repeat'),
+        onDeleted: _repeat == null ? null : () => setState(() => _repeat = null),
+      ),
+    );
   }
 
   @override
@@ -165,20 +209,12 @@ class _QuickAddFormState extends State<_QuickAddForm> {
               spacing: 6,
               runSpacing: 6,
               children: [
-                ChoiceChip(
-                  label: const Text('No date'),
-                  selected: _due == null,
-                  onSelected: (_) => setState(() => _due = null),
-                ),
-                ChoiceChip(
-                  label: const Text('Today'),
-                  selected: _due == today,
-                  onSelected: (_) => setState(() => _due = today),
-                ),
+                ChoiceChip(label: const Text('No date'), selected: _due == null, onSelected: (_) => _setDue(null)),
+                ChoiceChip(label: const Text('Today'), selected: _due == today, onSelected: (_) => _setDue(today)),
                 ChoiceChip(
                   label: const Text('Tomorrow'),
                   selected: _due == today.addDays(1),
-                  onSelected: (_) => setState(() => _due = today.addDays(1)),
+                  onSelected: (_) => _setDue(today.addDays(1)),
                 ),
                 ActionChip(
                   avatar: const Icon(Icons.event, size: 18),
@@ -192,7 +228,7 @@ class _QuickAddFormState extends State<_QuickAddForm> {
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2100),
                     );
-                    if (picked != null) setState(() => _due = LocalDate.fromDateTime(picked));
+                    if (picked != null) _setDue(LocalDate.fromDateTime(picked));
                   },
                 ),
               ],
@@ -229,7 +265,8 @@ class _QuickAddFormState extends State<_QuickAddForm> {
                     label: Text(_priority.label),
                   ),
                 ),
-                if (widget.parentId == null)
+                if (widget.parentId == null) _repeatChip(today),
+                if (widget.parentId == null && _repeat == null)
                   PopupMenuButton<TaskType>(
                     tooltip: 'Type',
                     initialValue: _type,

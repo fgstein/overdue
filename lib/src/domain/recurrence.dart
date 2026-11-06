@@ -15,6 +15,7 @@ enum MonthlyMode {
 }
 
 const weekdayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June', 'July', //
   'August', 'September', 'October', 'November', 'December',
@@ -198,3 +199,17 @@ class RecurrenceRule {
 
   static bool _setEq(Set<int> a, Set<int> b) => a.length == b.length && a.containsAll(b);
 }
+
+/// One-tap rules offered when creating a task ("Every Friday", "Every
+/// month on the 6th", ...), starting on [start].
+List<(String, RecurrenceRule)> recurrencePresets(LocalDate start) => [
+  ('Every day', RecurrenceRule.daily(start)),
+  ('Every weekday (Mon–Fri)', RecurrenceRule.weekly(start, weekdays: {1, 2, 3, 4, 5})),
+  for (var d = 1; d <= 7; d++) ('Every ${weekdayNames[d - 1]}', RecurrenceRule.weekly(start, weekdays: {d})),
+  ('Every month on the ${RecurrenceRule._ordinal(start.day)}', RecurrenceRule.monthlyOnDay(start, start.day)),
+  ('Every month on the last day', RecurrenceRule.monthlyOnDay(start, -1)),
+  (
+    'Every year on ${monthNames[start.month - 1]} ${start.day}',
+    RecurrenceRule(frequency: RecurrenceFrequency.yearly, start: start),
+  ),
+];

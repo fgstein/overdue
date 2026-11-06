@@ -633,7 +633,7 @@ class _OverlayList extends StatelessWidget {
             child: Row(children: [Icon(Icons.skip_next, size: 18), SizedBox(width: 10), Text('Skip this occurrence')]),
           )
         else
-          ...BulkActions.rescheduleItems(includePick: false, height: 34),
+          ...BulkActions.rescheduleItems(today: s.clock.today(), includePick: false, height: 34),
         const PopupMenuDivider(),
         ...BulkActions.priorityItems(scheme, height: 34),
         const PopupMenuDivider(),
@@ -670,7 +670,7 @@ class _OverlayList extends StatelessWidget {
       position: _at(context, at),
       items: [
         const PopupMenuItem<Object>(enabled: false, height: 28, child: Text('Move all overdue to…')),
-        ...BulkActions.rescheduleItems(includePick: false, height: 34),
+        ...BulkActions.rescheduleItems(today: s.clock.today(), includePick: false, height: 34),
       ],
     );
     if (choice != null && context.mounted) await BulkActions.applyMenuChoice(context, s, choice, overdue);

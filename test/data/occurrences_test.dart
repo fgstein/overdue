@@ -151,4 +151,24 @@ void main() {
     expect(await occ(id), ['2026-10-25:notStarted']);
     expect((await env.tasks.getTask(id))!.dueDate, LocalDate(2026, 10, 25));
   });
+
+  test('calendar shows a recurring task on every matching day, also past the materialised window', () async {
+    env.tasks.lookaheadDays = 6;
+    // Thursday 2026-10-01; every Friday.
+    final id = await env.tasks.createTask(
+      TaskDraft(
+        title: 'Weekly review',
+        type: TaskType.recurring,
+        recurrence: RecurrenceRule.weekly(LocalDate(2026, 10, 1), weekdays: {5}),
+      ),
+    );
+    final month = await env.tasks.watchDayActivity(LocalDate(2026, 10, 1), LocalDate(2026, 10, 31)).first;
+    final days = [
+      for (final e in month.entries)
+        if (e.value.any((c) => c.taskId == id)) LocalDate.fromEpochDay(e.key).toString(),
+    ]..sort();
+    expect(days, ['2026-10-02', '2026-10-09', '2026-10-16', '2026-10-23', '2026-10-30']);
+    // Only the window is stored; the rest is projected.
+    expect(await occ(id), ['2026-10-02:notStarted']);
+  });
 }
